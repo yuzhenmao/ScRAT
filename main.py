@@ -19,9 +19,9 @@ import collections
 import pdb
 
 from model_baseline import *
-from model_informer import Informer
-from model_longformer import Longformer
-from model_reformer import Reformer
+# from model_informer import Informer
+# from model_longformer import Longformer
+# from model_reformer import Reformer
 import matplotlib.pyplot as plt
 
 from dataloader import *
@@ -327,15 +327,15 @@ def train(x_train, x_valid, x_test, y_train, y_valid, y_test, id_train, id_test)
             fig.update_yaxes(title_text=sub_y_title, row=sub_row, col=sub_col)
 
 
-    plot_sub([train_losses], 1, 1, 'epoch', 'train loss', True, log_y=True)
-    plot_sub([train_accs], 1, 2, 'epoch', 'train acc', False, log_y=True)
-    plot_sub([valid_accs], 2, 1, 'epoch', 'valid acc', False, log_y=True)
-    plot_sub([test_accs], 2, 2, 'epoch', 'test acc', False, log_y=True)
+#     plot_sub([train_losses], 1, 1, 'epoch', 'train loss', True, log_y=True)
+#     plot_sub([train_accs], 1, 2, 'epoch', 'train acc', False, log_y=True)
+#     plot_sub([valid_accs], 2, 1, 'epoch', 'valid acc', False, log_y=True)
+#     plot_sub([test_accs], 2, 2, 'epoch', 'test acc', False, log_y=True)
 
-    if not os.path.exists(args.dir):
-        os.makedirs(args.dir)
+#     if not os.path.exists(args.dir):
+#         os.makedirs(args.dir)
 
-    fig.write_html(args.dir + '/' + args.train_dataset[24:-4] + '_' + args.test_dataset[30:-4] + '.html')
+#     fig.write_html(args.dir + '/' + args.train_dataset[24:-4] + '_' + args.test_dataset[30:-4] + '.html')
 
     return max_acc
 
