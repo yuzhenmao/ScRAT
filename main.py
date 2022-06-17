@@ -88,6 +88,10 @@ parser.add_argument("--test_num_sample", type=int, default=100,
 parser.add_argument('--model', type=str, default='Transformer')
 parser.add_argument('--dataset', type=str, default=None)
 
+parser.add_argument('--augment_num', type=int, default=100)
+parser.add_argument('--alpha', type=float, default=1.0)
+
+
 args = parser.parse_args()
 
 # print("# of GPUs is", torch.cuda.device_count())
@@ -137,6 +141,8 @@ def train(x_train, x_valid, x_test, y_train, y_valid, y_test, id_train, id_test)
     model = nn.DataParallel(model)
     model.to(device)
 
+    print(device)
+
     stats = {}
 
     ################################################################
@@ -175,7 +181,7 @@ def train(x_train, x_valid, x_test, y_train, y_valid, y_test, id_train, id_test)
             #y_ = y_.detach().cpu().numpy()
             #true.append(y_)
 
-        scheduler.step()
+        # scheduler.step()
 
 
         #pred = np.concatenate(pred)
@@ -226,26 +232,6 @@ def train(x_train, x_valid, x_test, y_train, y_valid, y_test, id_train, id_test)
 
             test_accs.append(test_acc)
 
-            # pred = []
-            # true = []
-            # with torch.no_grad():
-            #     for batch in tqdm(valid_loader):
-            #         x_ = batch[0].to(device)
-            #         y_ = batch[1].to(device)
-            #
-            #         out = model(x_)
-            #         out = nn.Sigmoid()(out)
-            #         out = out.detach().cpu().numpy()
-            #
-            #         pred.append(out)
-            #         y_ = y_.detach().cpu().numpy()
-            #         true.append(y_)
-            # pred = np.concatenate(pred)
-            # true = np.concatenate(true)
-            # pred = pred.argmax(1)
-            # valid_acc = accuracy_score(true.reshape(-1), pred)
-            #
-            # valid_accs.append(valid_acc)
 
             # pred = []
             # true = []
@@ -291,51 +277,51 @@ def train(x_train, x_valid, x_test, y_train, y_valid, y_test, id_train, id_test)
     #####################
     # Visualization
     #####################
-    start_epoch = 0
-    end_epoch = args.epochs
-    plot_num = 1
-    label = [None] * plot_num
-    label[0] = 'method=0, LR=0.001'
-    fig = make_subplots(rows=2, cols=2)
-    colors = plotly.colors.DEFAULT_PLOTLY_COLORS
-    col_num = len(colors)
-
-    epoch = np.arange(start_epoch, end_epoch)
-
-    def plot_sub(sub_val, sub_row, sub_col, sub_x_title, sub_y_title, sub_showlegend, log_y=True):
-        linewidth = 1
-        dash_val_counter = 0
-        dash_val = None
-
-        for k in range(plot_num):
-            fig.add_trace(go.Scatter(x=epoch, y=sub_val[k][start_epoch:end_epoch],
-                                     name=label[k], line=dict(color=colors[k % col_num], width=linewidth, dash=dash_val),
-                                     legendgroup=str(k), showlegend=sub_showlegend),
-                          row=sub_row, col=sub_col)
-            if dash_val_counter == 0:
-                dash_val = 'dashdot'
-            elif dash_val_counter == 1:
-                dash_val = 'dash'
-            else:
-                dash_val = None
-                dash_val_counter = -1
-            dash_val_counter += 1
-        fig.update_xaxes(title_text=sub_x_title, row=sub_row, col=sub_col)
-        if log_y == True:
-            fig.update_yaxes(title_text=sub_y_title, row=sub_row, col=sub_col, type="log")
-        else:
-            fig.update_yaxes(title_text=sub_y_title, row=sub_row, col=sub_col)
-
-
-#     plot_sub([train_losses], 1, 1, 'epoch', 'train loss', True, log_y=True)
-#     plot_sub([train_accs], 1, 2, 'epoch', 'train acc', False, log_y=True)
-#     plot_sub([valid_accs], 2, 1, 'epoch', 'valid acc', False, log_y=True)
-#     plot_sub([test_accs], 2, 2, 'epoch', 'test acc', False, log_y=True)
-
-#     if not os.path.exists(args.dir):
-#         os.makedirs(args.dir)
-
-#     fig.write_html(args.dir + '/' + args.train_dataset[24:-4] + '_' + args.test_dataset[30:-4] + '.html')
+    # start_epoch = 0
+    # end_epoch = args.epochs
+    # plot_num = 1
+    # label = [None] * plot_num
+    # label[0] = 'method=0, LR=0.001'
+    # fig = make_subplots(rows=2, cols=2)
+    # colors = plotly.colors.DEFAULT_PLOTLY_COLORS
+    # col_num = len(colors)
+    #
+    # epoch = np.arange(start_epoch, end_epoch)
+    #
+    # def plot_sub(sub_val, sub_row, sub_col, sub_x_title, sub_y_title, sub_showlegend, log_y=True):
+    #     linewidth = 1
+    #     dash_val_counter = 0
+    #     dash_val = None
+    #
+    #     for k in range(plot_num):
+    #         fig.add_trace(go.Scatter(x=epoch, y=sub_val[k][start_epoch:end_epoch],
+    #                                  name=label[k], line=dict(color=colors[k % col_num], width=linewidth, dash=dash_val),
+    #                                  legendgroup=str(k), showlegend=sub_showlegend),
+    #                       row=sub_row, col=sub_col)
+    #         if dash_val_counter == 0:
+    #             dash_val = 'dashdot'
+    #         elif dash_val_counter == 1:
+    #             dash_val = 'dash'
+    #         else:
+    #             dash_val = None
+    #             dash_val_counter = -1
+    #         dash_val_counter += 1
+    #     fig.update_xaxes(title_text=sub_x_title, row=sub_row, col=sub_col)
+    #     if log_y == True:
+    #         fig.update_yaxes(title_text=sub_y_title, row=sub_row, col=sub_col, type="log")
+    #     else:
+    #         fig.update_yaxes(title_text=sub_y_title, row=sub_row, col=sub_col)
+    #
+    #
+    # plot_sub([train_losses], 1, 1, 'epoch', 'train loss', True, log_y=True)
+    # plot_sub([train_accs], 1, 2, 'epoch', 'train acc', False, log_y=True)
+    # plot_sub([valid_accs], 2, 1, 'epoch', 'valid acc', False, log_y=True)
+    # plot_sub([test_accs], 2, 2, 'epoch', 'test acc', False, log_y=True)
+    #
+    # if not os.path.exists(args.dir):
+    #     os.makedirs(args.dir)
+    #
+    # fig.write_html(args.dir + '/' + args.train_dataset[24:-4] + '_' + args.test_dataset[30:-4] + '.html')
 
     return max_acc
 
