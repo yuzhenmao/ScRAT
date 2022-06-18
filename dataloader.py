@@ -1,18 +1,22 @@
 import numpy as np
-from tqdm import tqdm
+# from tqdm import tqdm
 import torch
 import pickle
 # import cloudpred
-import time
-import pdb
+# import time
+# import pdb
+# import pickle
 import random
-import scipy
-from scipy.io import mmread
-import scanpy as sc
-from sklearn.decomposition import PCA
-import scanpy as sc
-import pandas as pd
-from sklearn.model_selection import train_test_split
+# import scipy
+import os
+
+
+# from scipy.io import mmread
+# import scanpy as sc
+# from sklearn.decomposition import PCA
+# import scanpy as sc
+# import pandas as pd
+# from sklearn.model_selection import train_test_split
 
 
 # def scRNA_data(cell_num=100):
@@ -325,8 +329,8 @@ from sklearn.model_selection import train_test_split
 
 
 def Covid_data(args):
-    random.seed(args.seed+1)
-    np.random.seed(args.seed+2)
+    random.seed(args.seed + 1)
+    np.random.seed(args.seed + 2)
 
     with open('covid_pca.npy', 'rb') as f:
         data = np.load(f)
@@ -335,7 +339,7 @@ def Covid_data(args):
     patient_id = pickle.load(a_file)
     a_file.close()
 
-    a_file = open(args.task+'_label.pkl', "rb")
+    a_file = open(args.task + '_label.pkl', "rb")
     labels = pickle.load(a_file)
     a_file.close()
 
@@ -353,57 +357,49 @@ def Covid_data(args):
     elif args.task == 'stage':
         id_dict = {'convalescence': 0, 'progression': 1}
 
-    individual_train = []
-    individual_test = []
-    for idx in p_idx:
-        y = id_dict.get(labels[idx[0]], -1)
-        if y == -1:
-            continue
+    if args.all == 0:
+        individual_train = []
+        individual_test = []
+        for idx in p_idx:
+            y = id_dict.get(labels[idx[0]], -1)
+            if y == -1:
+                continue
 
-        if idx.shape[0] < args.train_sample_cells:
-            sample_cells = idx.shape[0] // 2
-        else:
-            sample_cells = args.train_sample_cells
-        temp = []
-        for _ in range(args.train_num_sample):
-            sample = np.random.choice(idx, sample_cells, replace=False)
-            temp.append((sample, y))
-        individual_train.append(temp)
+            if idx.shape[0] < args.train_sample_cells:
+                sample_cells = idx.shape[0] // 2
+            else:
+                sample_cells = args.train_sample_cells
+            temp = []
+            for _ in range(args.train_num_sample):
+                sample = np.random.choice(idx, sample_cells, replace=False)
+                temp.append((sample, y))
+            individual_train.append(temp)
 
-        if idx.shape[0] < args.test_sample_cells:
-            sample_cells = idx.shape[0] // 2
-        else:
-            sample_cells = args.test_sample_cells
-        temp = []
-        for _ in range(args.test_num_sample):
-            sample = np.random.choice(idx, sample_cells, replace=False)
+            if idx.shape[0] < args.test_sample_cells:
+                sample_cells = idx.shape[0] // 2
+            else:
+                sample_cells = args.test_sample_cells
+            temp = []
+            for _ in range(args.test_num_sample):
+                sample = np.random.choice(idx, sample_cells, replace=False)
+                temp.append((sample, y))
+            individual_test.append(temp)
+    else:
+        individual_train = []
+        individual_test = []
+        for idx in p_idx:
+            y = id_dict.get(labels[idx[0]], -1)
+            if y == -1:
+                continue
+
+            temp = []
+            sample = idx
             temp.append((sample, y))
-        individual_test.append(temp)
+            individual_train.append(temp)
+
+            temp = []
+            sample = idx
+            temp.append((sample, y))
+            individual_test.append(temp)
 
     return data, individual_train, individual_test
-
-
-
-    # X_train, y_train, id_train = data['X_train'], data['y_train'], data['id_train']
-    #
-    # a_file = open(args.test_dataset, "rb")
-    # data = pickle.load(a_file)
-    # a_file.close()
-    # X_test, y_test, id_test = data['X_test'], data['y_test'],  data['id_test']
-    #
-    # num_train = X_train.shape[0]
-    # random_idx = np.random.permutation(np.arange(num_train))
-    # X_valid, X_train = X_train[random_idx[:num_train // 10]], X_train[random_idx[num_train // 10:]]
-    # y_valid, y_train = y_train[random_idx[:num_train // 10]], y_train[random_idx[num_train // 10:]]
-    #
-    # random_idx = np.random.permutation(np.arange(2000))
-    # X_test1 = np.concatenate([X_test[random_idx[:1000]], X_train[:900]], 0)
-    # X_train1 = np.concatenate([X_test[random_idx[1000:]], X_train[900:]], 0)
-    # y_test = np.concatenate([np.zeros(1000), np.ones(900)], 0)
-    # y_train = np.concatenate([np.zeros(1000), np.ones(900)], 0)
-    #
-    #
-    #
-    # print("train / valid / test = ", X_train1.shape, X_valid.shape, X_test1.shape)
-    #
-    # return X_train1, X_valid, X_test1, y_train.reshape([-1, 1]), y_valid.reshape([-1, 1]), y_test.reshape([-1, 1]), id_train, id_test

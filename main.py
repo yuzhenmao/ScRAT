@@ -91,6 +91,7 @@ parser.add_argument('--dataset', type=str, default=None)
 parser.add_argument('--augment_num', type=int, default=100)
 parser.add_argument('--alpha', type=float, default=1.0)
 parser.add_argument('--repeat', type=int, default=3)
+parser.add_argument('--all', type=int, default=0)
 
 
 args = parser.parse_args()
