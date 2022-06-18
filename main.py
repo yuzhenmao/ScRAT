@@ -51,7 +51,7 @@ parser.add_argument("--test_dataset", type=str, default="covid_data_sex_4.pkl")
 parser.add_argument("--task", type=str, default="severity")
 
 parser.add_argument('--dim', type=int, default=128)  # hidden dim of the model
-parser.add_argument('--dropout', type=float, default=0.5)  # dropout
+parser.add_argument('--dropout', type=float, default=0.3)  # dropout
 
 parser.add_argument('--layers', type=int, default=1)
 parser.add_argument('--heads', type=int, default=8)
@@ -90,6 +90,7 @@ parser.add_argument('--dataset', type=str, default=None)
 
 parser.add_argument('--augment_num', type=int, default=100)
 parser.add_argument('--alpha', type=float, default=1.0)
+parser.add_argument('--repeat', type=int, default=3)
 
 
 args = parser.parse_args()
@@ -132,10 +133,10 @@ def train(x_train, x_valid, x_test, y_train, y_valid, y_test, id_train, id_test)
 
     if args.model == 'Transformer':
         model = Transformer(seq_len=args.sample_cells, input_dim= input_dim, PCA_dim=args.pca, h_dim=args.dim, N=args.layers, heads=args.heads, dropout=args.dropout, cl=output_class)
+    elif args.model == 'feedforward':
+        model = FeedForward_(PCA_dim=args.pca, cl=output_class, dropout=args.dropout)
     elif args.model == 'linear':
-        model = Linear_Classfier(seq_len=args.sample_cells, PCA_dim=args.pca, cl=output_class)
-    elif args.model == 'linear1':
-        model = Linear_Classfier_1(seq_len=args.sample_cells, PCA_dim=args.pca, cl=output_class)
+        model = Linear_Classfier(PCA_dim=args.pca, cl=output_class)
 
 
     model = nn.DataParallel(model)
@@ -327,7 +328,7 @@ def train(x_train, x_valid, x_test, y_train, y_valid, y_test, id_train, id_test)
 
 
 data, individual_train, individual_test = Covid_data(args)
-rkf = RepeatedKFold(n_splits=5, n_repeats=3, random_state=args.seed+3)
+rkf = RepeatedKFold(n_splits=5, n_repeats=args.repeat, random_state=args.seed+3)
 num = np.arange(len(individual_train))
 accuracy = []
 # TODO two methods: one is using batch-size=1, another is uisng batch-size=num_samples
