@@ -115,12 +115,12 @@ class Norm(nn.Module):
 
 
 class FeedForward(nn.Module):
-    def __init__(self, h_dim, d_ff=2048, dropout=0.1):
+    def __init__(self, h_dim1, h_dim2, d_ff=2048, dropout=0.1):
         super().__init__()
         # We set d_ff as a default to 2048
-        self.linear_1 = nn.Linear(h_dim, d_ff)
+        self.linear_1 = nn.Linear(h_dim1, d_ff)
         self.dropout = nn.Dropout(dropout)
-        self.linear_2 = nn.Linear(d_ff, h_dim)
+        self.linear_2 = nn.Linear(d_ff, h_dim2)
 
     def forward(self, x):
         x = self.dropout(nn.ReLU(True)(self.linear_1(x)))
@@ -135,7 +135,7 @@ class EncoderLayer(nn.Module):
         self.norm_1 = Norm(h_dim)
         self.norm_2 = Norm(h_dim)
         self.attn = MultiHeadAttention(attention, heads, h_dim)
-        self.ff = FeedForward(h_dim)
+        self.ff = FeedForward(h_dim, h_dim)
         self.dropout_1 = nn.Dropout(dropout)
         self.dropout_2 = nn.Dropout(dropout)
 
@@ -182,7 +182,7 @@ class Transformer(nn.Module):
         self.encoder = Encoder(PCA_dim, h_dim, N, heads, attention)
         self.out = nn.Linear(h_dim, cl)
         self.attens = None
-        self.dropout = nn.Dropout(0.5)
+        self.dropout = nn.Dropout(dropout)
 
     def forward(self, src, src_mask=None):
         # src = self.dimRedu(src)
@@ -195,39 +195,23 @@ class Transformer(nn.Module):
 
 ###### Linear model ######
 
-# class Linear_Classfier(nn.Module):
-#     def __init__(self, seq_len=100, PCA_dim=20, cl=5):
-#         super().__init__()
-#         self.out = nn.Linear(PCA_dim * seq_len, cl)
-#
-#     def forward(self, src):
-#         e_outputs = src.view(src.size(0), -1)
-#         output = self.out(e_outputs)
-#         return output
-
-
-class Linear_Classfier(nn.Module):
-    def __init__(self, seq_len=100, PCA_dim=50, cl=2):
+class FeedForward_(nn.Module):
+    def __init__(self, PCA_dim=50, cl=2, dropout=0.3):
         super().__init__()
-        self.out1 = nn.Linear(PCA_dim, 20)
-        self.out2 = nn.Linear(20, cl)
-        self.relu = nn.ReLU()
-        self.dropout = nn.Dropout(0.5)
+        self.ffd = FeedForward(h_dim1=PCA_dim, h_dim2=cl, d_ff=PCA_dim, dropout=dropout)
 
     def forward(self, src):
         e_outputs = torch.mean(src, dim=1)
-        output = self.out1(self.dropout(e_outputs))
-        output = self.out2(self.relu(output))
+        output = self.ffd(e_outputs)
         return output
 
 
-class Linear_Classfier_1(nn.Module):
-    def __init__(self, seq_len=100, PCA_dim=50, cl=2):
+class Linear_Classfier(nn.Module):
+    def __init__(self, PCA_dim=50, cl=2):
         super().__init__()
         self.out1 = nn.Linear(PCA_dim, cl)
-        self.dropout = nn.Dropout(0.5)
 
     def forward(self, src):
         e_outputs = torch.mean(src, dim=1)
-        output = self.out1(self.dropout(e_outputs))
+        output = self.out1(e_outputs)
         return output
