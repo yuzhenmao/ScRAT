@@ -124,7 +124,7 @@ def train(x_train, x_valid, x_test, y_train, y_valid, y_test, id_train, id_test)
     dataset_2 = MyDataset(x_train, x_valid, x_test, y_train, y_valid, y_test, id_train, id_test, fold='test')
     dataset_3 = MyDataset(x_train, x_valid, x_test, y_train, y_valid, y_test, id_train, id_test, fold='val')
     train_loader = torch.utils.data.DataLoader(dataset_1, batch_size=args.batch_size, shuffle=True, collate_fn=dataset_1.collate)
-    test_loader = torch.utils.data.DataLoader(dataset_2, batch_size=args.batch_size, shuffle=False, collate_fn=dataset_2.collate)
+    test_loader = torch.utils.data.DataLoader(dataset_2, batch_size=1, shuffle=False, collate_fn=dataset_2.collate)
     valid_loader = torch.utils.data.DataLoader(dataset_3, batch_size=args.batch_size, shuffle=False, collate_fn=dataset_3.collate)
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -215,7 +215,9 @@ def train(x_train, x_valid, x_test, y_train, y_valid, y_test, id_train, id_test)
                     #         stats[types] += 1
 
                     # majority voting
-                    out = np.argmax(np.bincount(out.argmax(1))).reshape(-1)
+                    f = lambda x: 1 if x >= 0.5 else 0
+                    func = np.vectorize(f)
+                    out = np.argmax(np.bincount(func(out).reshape(-1))).reshape(-1)
                     pred.append(out)
                     y_ = y_.detach().cpu().numpy()
                     true.append(y_)
@@ -272,7 +274,7 @@ def train(x_train, x_valid, x_test, y_train, y_valid, y_test, id_train, id_test)
 
             #print("Epoch %d, Train Loss %f, Train AUC %f Test AUC %f,"%(ep, train_loss, AUC, test_AUC))
             # print("Epoch %d, Train Loss %f, Train ACC %f, Valid ACC %f, Test ACC %f,"%(ep, train_loss, train_acc, valid_acc, test_acc))
-            # print("Epoch %d, Train Loss %f, Test ACC %f,"%(ep, train_loss, test_acc))
+            print("Epoch %d, Train Loss %f, Test ACC %f,"%(ep, train_loss, test_acc))
 
         # print(stats)
     print("Best performance: Epoch %d, Loss %f, Test ACC %f," % (max_epoch, max_loss, max_acc))
