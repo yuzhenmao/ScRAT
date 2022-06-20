@@ -50,7 +50,7 @@ parser.add_argument("--test_dataset", type=str, default="covid_data_sex_4.pkl")
 
 parser.add_argument("--task", type=str, default="severity")
 
-parser.add_argument('--dim', type=int, default=128)  # hidden dim of the model
+parser.add_argument('--h_dim', type=int, default=128)  # hidden dim of the model
 parser.add_argument('--dropout', type=float, default=0.3)  # dropout
 
 parser.add_argument('--layers', type=int, default=1)
@@ -92,6 +92,7 @@ parser.add_argument('--augment_num', type=int, default=100)
 parser.add_argument('--alpha', type=float, default=1.0)
 parser.add_argument('--repeat', type=int, default=3)
 parser.add_argument('--all', type=int, default=0)
+parser.add_argument('--min_size', type=int, default=1000)
 
 
 args = parser.parse_args()
@@ -130,10 +131,10 @@ def train(x_train, x_valid, x_test, y_train, y_valid, y_test, id_train, id_test)
 
     seq_len = 100
     input_dim = x_train[0].shape[-1]
-    output_class = 2
+    output_class = 1
 
     if args.model == 'Transformer':
-        model = Transformer(seq_len=args.sample_cells, input_dim= input_dim, PCA_dim=args.pca, h_dim=args.dim, N=args.layers, heads=args.heads, dropout=args.dropout, cl=output_class)
+        model = Transformer(seq_len=args.sample_cells, input_dim= input_dim, PCA_dim=args.pca, h_dim=args.h_dim, N=args.layers, heads=args.heads, dropout=args.dropout, cl=output_class)
     elif args.model == 'feedforward':
         model = FeedForward_(PCA_dim=args.pca, cl=output_class, dropout=args.dropout)
     elif args.model == 'linear':
@@ -152,6 +153,7 @@ def train(x_train, x_valid, x_test, y_train, y_valid, y_test, id_train, id_test)
     ################################################################
     optimizer = Adam(model.parameters(), lr=args.learning_rate, weight_decay=args.weight_decay)
     scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=50, gamma=0.1, last_epoch=-1)
+    sigmoid = torch.nn.Sigmoid().to(device)
 
     max_acc, max_epoch, max_auc, max_loss = 0, 0, 0, 0
     test_accs, valid_accs, train_losses, train_accs = [], [], [], []
@@ -170,13 +172,13 @@ def train(x_train, x_valid, x_test, y_train, y_valid, y_test, id_train, id_test)
 
             out = model(x_)
 
-            loss = nn.CrossEntropyLoss()(out, y_.reshape(-1))
+            loss = nn.BCELoss()(sigmoid(out), y_)
             loss.backward()
 
             optimizer.step()
             train_loss.append(loss.item())
 
-            #out = nn.Sigmoid()(out)
+            #out = sigmoid(out)
             #out = out.detach().cpu().numpy()
 
             #pred.append(out)
@@ -196,12 +198,12 @@ def train(x_train, x_valid, x_test, y_train, y_valid, y_test, id_train, id_test)
             pred = []
             true = []
             with torch.no_grad():
-                for batch in tqdm(test_loader):
+                for batch in (test_loader):
                     x_ = batch[0].to(device).squeeze(0)
                     y_ = batch[1].to(device)
 
                     out = model(x_)
-                    out = nn.Sigmoid()(out)
+                    out = sigmoid(out)
                     out = out.detach().cpu().numpy()
 
                     # attens = model.module.attens
@@ -243,7 +245,7 @@ def train(x_train, x_valid, x_test, y_train, y_valid, y_test, id_train, id_test)
             #         y_ = batch[1].to(device)
             #
             #         out = model(x_)
-            #         out = nn.Sigmoid()(out)
+            #         out = sigmoid(out)
             #         out = out.detach().cpu().numpy()
             #
             #         # attens = model.module.attens

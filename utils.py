@@ -41,13 +41,13 @@ class MyDataset(Dataset):
     def __getitem__(self, index):
         if self.train:
             x, y, cell_id = torch.from_numpy(np.array(self.x_train[index])).float(), \
-                            torch.from_numpy(self.y_train[index]).long(), self.id_train[index]
+                            torch.from_numpy(self.y_train[index]).float(), self.id_train[index]
         elif self.test:
             x, y, cell_id = torch.from_numpy(np.array(self.x_test[index])).float(), \
-                            torch.from_numpy(self.y_test[index]).long(), self.id_test[index]
+                            torch.from_numpy(self.y_test[index]).float(), self.id_test[index]
         elif self.val:
             x, y, cell_id = torch.from_numpy(np.array(self.x_valid[index])).float(), \
-                            torch.from_numpy(self.y_valid[index]).long(), []
+                            torch.from_numpy(self.y_valid[index]).float(), []
 
         return x, y, cell_id
 
@@ -56,4 +56,4 @@ class MyDataset(Dataset):
         xs = batches[0][0].unsqueeze(0)
         ys = batches[0][1].unsqueeze(0)
         ids = batches[0][2]
-        return torch.FloatTensor(xs), torch.LongTensor(ys), ids
+        return torch.FloatTensor(xs), torch.FloatTensor(ys), ids
