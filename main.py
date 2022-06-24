@@ -336,7 +336,7 @@ def train(x_train, x_valid, x_test, y_train, y_valid, y_test, id_train, id_test)
     return max_acc
 
 
-data, p_idx, labels_ = Covid_data(args)
+data, p_idx, labels_, cell_type = Covid_data(args)
 rkf = RepeatedKFold(n_splits=5, n_repeats=args.repeat, random_state=args.seed+3)
 num = np.arange(len(p_idx))
 accuracy = []
@@ -353,7 +353,7 @@ for train_index, test_index in rkf.split(num):
     id_train = []
     id_test = []
     # only use the augmented data (intra-mixup, inter-mixup) as train data
-    data_augmented, train_p_idx, labels_augmented = mixups(args, data, [p_idx[idx] for idx in train_index], labels_)
+    data_augmented, train_p_idx, labels_augmented = mixups(args, data, [p_idx[idx] for idx in train_index], labels_, cell_type)
     individual_train, individual_test = sampling(args, train_p_idx, [p_idx[idx] for idx in test_index], labels_augmented)
     for t in individual_train:
         id, label = [id_l[0] for id_l in t], [id_l[1] for id_l in t]

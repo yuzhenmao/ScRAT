@@ -63,23 +63,31 @@ class MyDataset(Dataset):
 def mixup(x, x_p, alpha=1.0):
     batch_size = min(x.shape[0], x_p.shape[0])
     lam = np.random.beta(alpha, alpha)
-    x = np.random.permutation(x)
-    x_p = np.random.permutation(x_p)
+    # x = np.random.permutation(x)
+    # x_p = np.random.permutation(x_p)
     x_mix = lam * x[:batch_size] + (1 - lam) * x_p[:batch_size]
     return x_mix, lam
 
 
-def mixups(args, data, p_idx, labels_):
+def mixups(args, data, p_idx, labels_, cell_type):
     data_augmented = copy.deepcopy(data)
     labels_augmented = copy.deepcopy(labels_)
+    cell_type_augmented = copy.deepcopy(cell_type)
     # intra-mixup
     if args.intra_mixup is True:
         print("======= intra patient mixup ... ============")
         for idx, i in enumerate(p_idx):
             if len(i) < args.min_size:
-                diff = args.min_size - len(i)
-                sampled_idx_1 = np.random.choice(i, diff)
-                sampled_idx_2 = np.random.choice(i, diff)
+                diff = 0
+                sampled_idx_1 = []
+                sampled_idx_2 = []
+                for ct in set(cell_type[i]):
+                    i_sub = i[cell_type[i] == ct]
+                    diff_sub = max((args.min_size - len(i)) * len(i_sub) // len(i), 1)
+                    sampled_idx_1 += np.random.choice(i_sub, diff_sub).tolist()
+                    sampled_idx_2 += np.random.choice(i_sub, diff_sub).tolist()
+                    cell_type_augmented = np.concatenate([cell_type_augmented, [ct] * diff_sub])
+                    diff += diff_sub
                 x_mix, lam = mixup(data[sampled_idx_1], data[sampled_idx_2], alpha=args.alpha)
                 data_augmented = np.concatenate([data_augmented, x_mix])
                 labels_augmented = np.concatenate([labels_augmented, [labels_augmented[i[0]]] * diff])
@@ -93,11 +101,21 @@ def mixups(args, data, p_idx, labels_):
         for i in range(args.augment_num):
             id_1, id_2 = np.random.randint(len(p_idx), size=2)
             idx_1, idx_2 = p_idx[id_1], p_idx[id_2]
-            sampled_idx_1 = np.random.choice(idx_1, args.min_size)
-            sampled_idx_2 = np.random.choice(idx_2, args.min_size)
+            diff = 0
+            sampled_idx_1 = []
+            sampled_idx_2 = []
+            set_intersection = set(cell_type_augmented[idx_1]).intersection(set(cell_type_augmented[idx_2]))
+            while diff < args.min_size:
+                for ct in set_intersection:
+                    i_sub_1 = idx_1[cell_type_augmented[idx_1] == ct]
+                    i_sub_2 = idx_2[cell_type_augmented[idx_2] == ct]
+                    diff_sub = max(args.min_size * (len(i_sub_1)+len(i_sub_2)) // (len(idx_1)+len(idx_2)), 1)
+                    sampled_idx_1 += np.random.choice(i_sub_1, diff_sub).tolist()
+                    sampled_idx_2 += np.random.choice(i_sub_2, diff_sub).tolist()
+                    cell_type_augmented = np.concatenate([cell_type_augmented, [ct] * diff_sub])
+                    diff += diff_sub
             x_mix, lam = mixup(data_augmented[sampled_idx_1], data_augmented[sampled_idx_2], alpha=args.alpha)
             data_augmented = np.concatenate([data_augmented, x_mix])
-            diff = x_mix.shape[0]
             labels_augmented = np.concatenate([labels_augmented, [lam * labels_augmented[idx_1[0]] + (1 - lam) * labels_augmented[idx_2[0]]] * diff])
             p_idx_augmented.append(np.arange(labels_augmented.shape[0] - diff, labels_augmented.shape[0]))
 
