@@ -38,7 +38,7 @@ parser = argparse.ArgumentParser(description='scRNA diagnosis')
 
 parser.add_argument('--seed', type=int, default=240)
 
-parser.add_argument('--batch_size', type=int, default=1)
+parser.add_argument('--batch_size', type=int, default=16)
 parser.add_argument('--learning_rate', type=float, default=1e-3)
 parser.add_argument('--weight_decay', type=float, default=1e-4)
 parser.add_argument('--epochs', type=int, default=50)
@@ -88,6 +88,7 @@ parser.add_argument("--test_num_sample", type=int, default=100,
 parser.add_argument('--model', type=str, default='Transformer')
 parser.add_argument('--dataset', type=str, default=None)
 
+parser.add_argument('--intra_mixup', type=_str2bool, default=True)
 parser.add_argument('--augment_num', type=int, default=100)
 parser.add_argument('--alpha', type=float, default=1.0)
 parser.add_argument('--repeat', type=int, default=3)
@@ -172,6 +173,9 @@ def train(x_train, x_valid, x_test, y_train, y_valid, y_test, id_train, id_test)
 
             out = model(x_)
 
+            # if y_ != 1 and y_ != 0:
+            #     print(sigmoid(out), y_)
+
             loss = nn.BCELoss()(sigmoid(out), y_)
             loss.backward()
 
@@ -222,7 +226,7 @@ def train(x_train, x_valid, x_test, y_train, y_valid, y_test, id_train, id_test)
                     y_ = y_.detach().cpu().numpy()
                     true.append(y_)
             pred = np.concatenate(pred)
-            true = np.concatenate(true)
+            true = np.concatenate(true).reshape(-1)
 
 
             train_loss = sum(train_loss) / len(train_loss)
@@ -234,7 +238,7 @@ def train(x_train, x_valid, x_test, y_train, y_valid, y_test, id_train, id_test)
             # test_AUC = metrics.auc(fpr, tpr)
             test_AUC = 0
 
-            test_acc = accuracy_score(true.reshape(-1), pred)
+            test_acc = accuracy_score(true, pred)
 
             test_accs.append(test_acc)
 
@@ -267,7 +271,7 @@ def train(x_train, x_valid, x_test, y_train, y_valid, y_test, id_train, id_test)
             # train_acc = accuracy_score(true.reshape(-1), pred)
             # train_accs.append(train_acc)
 
-            if test_acc > max_acc:
+            if test_acc >= max_acc:
                 max_epoch = ep
                 max_acc = test_acc
                 max_loss = train_loss
@@ -332,9 +336,9 @@ def train(x_train, x_valid, x_test, y_train, y_valid, y_test, id_train, id_test)
     return max_acc
 
 
-data, individual_train, individual_test = Covid_data(args)
+data, p_idx, labels_ = Covid_data(args)
 rkf = RepeatedKFold(n_splits=5, n_repeats=args.repeat, random_state=args.seed+3)
-num = np.arange(len(individual_train))
+num = np.arange(len(p_idx))
 accuracy = []
 # TODO two methods: one is using batch-size=1, another is uisng batch-size=num_samples
 # TODO the first method keeps this veriosn; for the second method, use the one in test_index
@@ -348,14 +352,17 @@ for train_index, test_index in rkf.split(num):
     y_test = []
     id_train = []
     id_test = []
-    for t in train_index:
-        id, label = [id_l[0] for id_l in individual_train[t]], [id_l[1] for id_l in individual_train[t]]
-        x_train += [data[ii] for ii in id]
+    # only use the augmented data (intra-mixup, inter-mixup) as train data
+    data_augmented, train_p_idx, labels_augmented = mixups(args, data, [p_idx[idx] for idx in train_index], labels_)
+    individual_train, individual_test = sampling(args, train_p_idx, [p_idx[idx] for idx in test_index], labels_augmented)
+    for t in individual_train:
+        id, label = [id_l[0] for id_l in t], [id_l[1] for id_l in t]
+        x_train += [data_augmented[ii] for ii in id]
         y_train += (label)
         id_train += (id)
-    for t in test_index:
-        id, label = [id_l[0] for id_l in individual_test[t]], [id_l[1] for id_l in individual_test[t]]
-        x_test.append([data[ii] for ii in id])
+    for t in individual_test:
+        id, label = [id_l[0] for id_l in t], [id_l[1] for id_l in t]
+        x_test.append([data_augmented[ii] for ii in id])
         y_test.append(label[0])
         id_test.append(id)
 

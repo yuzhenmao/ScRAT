@@ -1,6 +1,7 @@
 import os
 import torch
 import numpy as np
+import copy
 from torch.utils.data import Dataset
 import pdb
 
@@ -53,7 +54,96 @@ class MyDataset(Dataset):
 
 
     def collate(self, batches):
-        xs = batches[0][0].unsqueeze(0)
-        ys = batches[0][1].unsqueeze(0)
-        ids = batches[0][2]
+        xs = torch.stack([batch[0] for batch in batches if len(batch) > 0])
+        ys = torch.stack([batch[1] for batch in batches if len(batch) > 0])
+        ids = [batch[2] for batch in batches if len(batch) > 0]
         return torch.FloatTensor(xs), torch.FloatTensor(ys), ids
+
+
+def mixup(x, x_p, alpha=1.0):
+    batch_size = min(x.shape[0], x_p.shape[0])
+    lam = np.random.beta(alpha, alpha)
+    x = np.random.permutation(x)
+    x_p = np.random.permutation(x_p)
+    x_mix = lam * x[:batch_size] + (1 - lam) * x_p[:batch_size]
+    return x_mix, lam
+
+
+def mixups(args, data, p_idx, labels_):
+    data_augmented = copy.deepcopy(data)
+    labels_augmented = copy.deepcopy(labels_)
+    # intra-mixup
+    if args.intra_mixup is True:
+        print("======= intra patient mixup ... ============")
+        for idx, i in enumerate(p_idx):
+            if len(i) < args.min_size:
+                diff = args.min_size - len(i)
+                sampled_idx_1 = np.random.choice(i, diff)
+                sampled_idx_2 = np.random.choice(i, diff)
+                x_mix, lam = mixup(data[sampled_idx_1], data[sampled_idx_2], alpha=args.alpha)
+                data_augmented = np.concatenate([data_augmented, x_mix])
+                labels_augmented = np.concatenate([labels_augmented, [labels_augmented[i[0]]] * diff])
+                p_idx[idx] = np.concatenate([i, np.arange(labels_augmented.shape[0] - diff, labels_augmented.shape[0])])
+
+    p_idx_augmented = copy.deepcopy(p_idx)
+    # p_idx_augmented = []
+    # inter-mixup
+    if args.augment_num > 0:
+        print("======= inter patient mixup ... ============")
+        for i in range(args.augment_num):
+            id_1, id_2 = np.random.randint(len(p_idx), size=2)
+            idx_1, idx_2 = p_idx[id_1], p_idx[id_2]
+            sampled_idx_1 = np.random.choice(idx_1, args.min_size)
+            sampled_idx_2 = np.random.choice(idx_2, args.min_size)
+            x_mix, lam = mixup(data_augmented[sampled_idx_1], data_augmented[sampled_idx_2], alpha=args.alpha)
+            data_augmented = np.concatenate([data_augmented, x_mix])
+            diff = x_mix.shape[0]
+            labels_augmented = np.concatenate([labels_augmented, [lam * labels_augmented[idx_1[0]] + (1 - lam) * labels_augmented[idx_2[0]]] * diff])
+            p_idx_augmented.append(np.arange(labels_augmented.shape[0] - diff, labels_augmented.shape[0]))
+
+    return data_augmented, p_idx_augmented, labels_augmented
+
+
+def sampling(args, train_p_idx, test_p_idx, labels_):
+    if args.all == 0:
+        individual_train = []
+        individual_test = []
+        for idx in train_p_idx:
+            y = labels_[idx[0]]
+            if idx.shape[0] < args.train_sample_cells:
+                sample_cells = idx.shape[0] // 2
+            else:
+                sample_cells = args.train_sample_cells
+            temp = []
+            for _ in range(args.train_num_sample):
+                sample = np.random.choice(idx, sample_cells, replace=False)
+                temp.append((sample, y))
+            individual_train.append(temp)
+        for idx in test_p_idx:
+            y = labels_[idx[0]]
+            if idx.shape[0] < args.test_sample_cells:
+                sample_cells = idx.shape[0] // 2
+            else:
+                sample_cells = args.test_sample_cells
+            temp = []
+            for _ in range(args.test_num_sample):
+                sample = np.random.choice(idx, sample_cells, replace=False)
+                temp.append((sample, y))
+            individual_test.append(temp)
+    else:
+        individual_train = []
+        individual_test = []
+        for idx in train_p_idx:
+            y = labels_[idx[0]]
+            temp = []
+            sample = idx
+            temp.append((sample, y))
+            individual_train.append(temp)
+        for idx in test_p_idx:
+            y = labels_[idx[0]]
+            temp = []
+            sample = idx
+            temp.append((sample, y))
+            individual_test.append(temp)
+
+    return individual_train, individual_test
