@@ -352,7 +352,7 @@ def train(x_train, x_valid, x_test, y_train, y_valid, y_test, id_train, id_test)
 
 
 data, p_idx, labels_, cell_type, patient_id = Covid_data(args)
-rkf = RepeatedKFold(n_splits=2, n_repeats=args.repeat, random_state=args.seed+3)
+rkf = RepeatedKFold(n_splits=5, n_repeats=args.repeat, random_state=args.seed+3)
 num = np.arange(len(p_idx))
 accuracy = []
 # TODO two methods: one is using batch-size=1, another is uisng batch-size=num_samples
