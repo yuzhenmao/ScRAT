@@ -4,6 +4,7 @@ import numpy as np
 import copy
 from torch.utils.data import Dataset
 import pdb
+from tqdm import tqdm
 
 class MyDataset(Dataset):
     def __init__(self, x_train, x_valid, x_test, y_train, y_valid, y_test, id_train, id_test, fold='train'):
@@ -70,6 +71,7 @@ def mixup(x, x_p, alpha=1.0):
 
 
 def mixups(args, data, p_idx, labels_, cell_type):
+    np.random.seed(args.seed * 2)
     data_augmented = copy.deepcopy(data)
     labels_augmented = copy.deepcopy(labels_)
     cell_type_augmented = copy.deepcopy(cell_type)
@@ -93,12 +95,14 @@ def mixups(args, data, p_idx, labels_, cell_type):
                 labels_augmented = np.concatenate([labels_augmented, [labels_augmented[i[0]]] * diff])
                 p_idx[idx] = np.concatenate([i, np.arange(labels_augmented.shape[0] - diff, labels_augmented.shape[0])])
 
-    p_idx_augmented = copy.deepcopy(p_idx)
-    # p_idx_augmented = []
-    # inter-mixup
+    if args.inter_only:
+        p_idx_augmented = []
+    else:
+        p_idx_augmented = copy.deepcopy(p_idx)
+        # inter-mixup
     if args.augment_num > 0:
         print("======= inter patient mixup ... ============")
-        for i in range(args.augment_num):
+        for i in tqdm(range(args.augment_num)):
             id_1, id_2 = np.random.randint(len(p_idx), size=2)
             idx_1, idx_2 = p_idx[id_1], p_idx[id_2]
             diff = 0
@@ -123,6 +127,7 @@ def mixups(args, data, p_idx, labels_, cell_type):
 
 
 def sampling(args, train_p_idx, test_p_idx, labels_):
+    np.random.seed(args.seed * 3)
     if args.all == 0:
         individual_train = []
         individual_test = []

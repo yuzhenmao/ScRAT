@@ -54,4 +54,4 @@ def Covid_data(args):
         if labels_[idx[0]] > -1:
             p_idx.append(idx)
 
-    return data, p_idx, labels_, cell_type
+    return data, p_idx, labels_, cell_type, patient_id

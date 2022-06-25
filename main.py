@@ -89,7 +89,8 @@ parser.add_argument('--model', type=str, default='Transformer')
 parser.add_argument('--dataset', type=str, default=None)
 
 parser.add_argument('--intra_mixup', type=_str2bool, default=True)
-parser.add_argument('--augment_num', type=int, default=100)
+parser.add_argument('--inter_only', type=_str2bool, default=False)
+parser.add_argument('--augment_num', type=int, default=300)
 parser.add_argument('--alpha', type=float, default=1.0)
 parser.add_argument('--repeat', type=int, default=3)
 parser.add_argument('--all', type=int, default=0)
@@ -103,6 +104,8 @@ print(args)
 
 torch.manual_seed(args.seed)
 np.random.seed(args.seed)
+
+patient_summary = {}
 
 # x_train, x_valid, x_test, y_train, y_valid, y_test = scRNA_data(cell_num=100)  # numpy array
 # x_train, x_valid, x_test, y_train, y_valid, y_test = Cloudpred_data(args)
@@ -158,6 +161,7 @@ def train(x_train, x_valid, x_test, y_train, y_valid, y_test, id_train, id_test)
 
     max_acc, max_epoch, max_auc, max_loss = 0, 0, 0, 0
     test_accs, valid_accs, train_losses, train_accs = [], [], [], []
+    wrongs = []
     for ep in range(1, args.epochs+1):
         model.train()
         train_loss = []
@@ -173,8 +177,9 @@ def train(x_train, x_valid, x_test, y_train, y_valid, y_test, id_train, id_test)
 
             out = model(x_)
 
-            # if y_ != 1 and y_ != 0:
-            #     print(sigmoid(out), y_)
+            # for yy in range(len(y_)):
+            #     if y_[yy] != 1 and y_[yy] != 0:
+            #         print(sigmoid(out[yy]), y_[yy])
 
             loss = nn.BCELoss()(sigmoid(out), y_)
             loss.backward()
@@ -201,6 +206,7 @@ def train(x_train, x_valid, x_test, y_train, y_valid, y_test, id_train, id_test)
             model.eval()
             pred = []
             true = []
+            wrong = []
             with torch.no_grad():
                 for batch in (test_loader):
                     x_ = batch[0].to(device).squeeze(0)
@@ -225,8 +231,14 @@ def train(x_train, x_valid, x_test, y_train, y_valid, y_test, id_train, id_test)
                     pred.append(out)
                     y_ = y_.detach().cpu().numpy()
                     true.append(y_)
+                    if out[0] != y_[0][0]:
+                        wrong.append(patient_id[batch[2][0][0][0]])
             pred = np.concatenate(pred)
             true = np.concatenate(true).reshape(-1)
+            if len(wrongs) == 0:
+                wrongs = set(wrong)
+            else:
+                wrongs = wrongs.intersection(set(wrong))
 
 
             train_loss = sum(train_loss) / len(train_loss)
@@ -282,6 +294,9 @@ def train(x_train, x_valid, x_test, y_train, y_valid, y_test, id_train, id_test)
 
         # print(stats)
     print("Best performance: Epoch %d, Loss %f, Test ACC %f," % (max_epoch, max_loss, max_acc))
+    for w in wrongs:
+        v = patient_summary.get(w, 0)
+        patient_summary[w] = v + 1
 
 
     #####################
@@ -336,8 +351,8 @@ def train(x_train, x_valid, x_test, y_train, y_valid, y_test, id_train, id_test)
     return max_acc
 
 
-data, p_idx, labels_, cell_type = Covid_data(args)
-rkf = RepeatedKFold(n_splits=5, n_repeats=args.repeat, random_state=args.seed+3)
+data, p_idx, labels_, cell_type, patient_id = Covid_data(args)
+rkf = RepeatedKFold(n_splits=2, n_repeats=args.repeat, random_state=args.seed+3)
 num = np.arange(len(p_idx))
 accuracy = []
 # TODO two methods: one is using batch-size=1, another is uisng batch-size=num_samples
@@ -374,3 +389,4 @@ for train_index, test_index in rkf.split(num):
 
 
 print("Best performance: Test ACC %f," % (np.average(accuracy)))
+print(patient_summary)
