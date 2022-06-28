@@ -16,13 +16,15 @@ import pandas as pd
 from sklearn.model_selection import train_test_split
 
 
-
 def Covid_data(args):
     random.seed(args.seed+1)
     np.random.seed(args.seed+2)
 
-    with open('covid_pca.npy', 'rb') as f:
-        data = np.load(f)
+    # with open('covid_pca.npy', 'rb') as f:
+    #     data = np.load(f)
+
+    with open('origin.npy', 'rb') as f:
+        original = np.load(f)
 
     a_file = open('patient_id.pkl', "rb")
     patient_id = pickle.load(a_file)
@@ -46,7 +48,7 @@ def Covid_data(args):
 
     labels_ = np.array(labels.map(id_dict))
 
-    indices = np.arange(data.shape[0])
+    indices = np.arange(original.shape[0])
     p_ids = list(set(patient_id))
     p_idx = []
     for i in p_ids:
@@ -54,4 +56,4 @@ def Covid_data(args):
         if labels_[idx[0]] > -1:
             p_idx.append(idx)
 
-    return data, p_idx, labels_, cell_type, patient_id
+    return [], p_idx, labels_, cell_type, patient_id, original
