@@ -24,6 +24,9 @@ from model_baseline import *
 # from model_reformer import Reformer
 import matplotlib.pyplot as plt
 
+# import warnings
+# warnings.filterwarnings("ignore")
+
 from dataloader import *
 
 def _str2bool(v):
@@ -90,11 +93,13 @@ parser.add_argument('--dataset', type=str, default=None)
 
 parser.add_argument('--intra_mixup', type=_str2bool, default=True)
 parser.add_argument('--inter_only', type=_str2bool, default=False)
-parser.add_argument('--augment_num', type=int, default=300)
+parser.add_argument('--same_pheno', type=int, default=0)
+parser.add_argument('--augment_num', type=int, default=100)
 parser.add_argument('--alpha', type=float, default=1.0)
 parser.add_argument('--repeat', type=int, default=3)
 parser.add_argument('--all', type=int, default=0)
 parser.add_argument('--min_size', type=int, default=1000)
+parser.add_argument('--n_splits', type=int, default=5)
 
 
 args = parser.parse_args()
@@ -138,11 +143,11 @@ def train(x_train, x_valid, x_test, y_train, y_valid, y_test, id_train, id_test)
     output_class = 1
 
     if args.model == 'Transformer':
-        model = Transformer(seq_len=args.sample_cells, input_dim= input_dim, PCA_dim=args.pca, h_dim=args.h_dim, N=args.layers, heads=args.heads, dropout=args.dropout, cl=output_class)
+        model = Transformer(seq_len=args.sample_cells, input_dim=input_dim, PCA_dim=args.pca, h_dim=args.h_dim, N=args.layers, heads=args.heads, dropout=args.dropout, cl=output_class)
     elif args.model == 'feedforward':
-        model = FeedForward_(PCA_dim=args.pca, cl=output_class, dropout=args.dropout)
+        model = FeedForward_(input_dim=input_dim, PCA_dim=args.pca, cl=output_class, dropout=args.dropout)
     elif args.model == 'linear':
-        model = Linear_Classfier(PCA_dim=args.pca, cl=output_class)
+        model = Linear_Classfier(input_dim=input_dim, cl=output_class)
 
 
     model = nn.DataParallel(model)
@@ -351,8 +356,8 @@ def train(x_train, x_valid, x_test, y_train, y_valid, y_test, id_train, id_test)
     return max_acc
 
 
-data, p_idx, labels_, cell_type, patient_id = Covid_data(args)
-rkf = RepeatedKFold(n_splits=2, n_repeats=args.repeat, random_state=args.seed+3)
+_, p_idx, labels_, cell_type, patient_id, data = Covid_data(args)
+rkf = RepeatedKFold(n_splits=args.n_splits, n_repeats=args.repeat, random_state=args.seed+3)
 num = np.arange(len(p_idx))
 accuracy = []
 # TODO two methods: one is using batch-size=1, another is uisng batch-size=num_samples

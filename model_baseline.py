@@ -177,7 +177,7 @@ class Transformer(nn.Module):
     def __init__(self, seq_len=100, input_dim=100, PCA_dim=128, h_dim=128, N=6, heads=8, attention=Attention, d_ff=2048,
                  dropout=0.1, cl=6):
         super().__init__()
-        # self.dimRedu = torch.nn.Sequential(nn.Dropout(p=dropout), nn.Linear(input_dim, PCA_dim), nn.ReLU(), nn.Linear(PCA_dim, PCA_dim))
+        self.dimRedu = torch.nn.Sequential(nn.Dropout(p=dropout), nn.Linear(input_dim, PCA_dim), nn.ReLU(), nn.Linear(PCA_dim, PCA_dim))
         # self.dimRedu = torch.nn.Sequential(nn.Linear(input_dim, PCA_dim), nn.ReLU(), nn.Linear(PCA_dim, PCA_dim))
         self.encoder = Encoder(PCA_dim, h_dim, N, heads, attention, d_ff, dropout)
         self.out = nn.Linear(h_dim, cl)
@@ -185,8 +185,7 @@ class Transformer(nn.Module):
         self.dropout = nn.Dropout(dropout)
 
     def forward(self, src, src_mask=None):
-        # src = self.dimRedu(src)
-
+        src = self.dimRedu(src)
         e_outputs, self.attens = self.encoder(src, src_mask)
         # e_outputs = self.encoder(src, src_mask)
         e_outputs = e_outputs.mean(1)
@@ -196,9 +195,9 @@ class Transformer(nn.Module):
 ###### Linear model ######
 
 class FeedForward_(nn.Module):
-    def __init__(self, PCA_dim=50, cl=2, dropout=0.3):
+    def __init__(self, input_dim, PCA_dim=50, cl=2, dropout=0.3):
         super().__init__()
-        self.ffd = FeedForward(h_dim1=PCA_dim, h_dim2=cl, d_ff=PCA_dim, dropout=dropout)
+        self.ffd = FeedForward(h_dim1=input_dim, h_dim2=cl, d_ff=PCA_dim, dropout=dropout)
 
     def forward(self, src):
         e_outputs = torch.mean(src, dim=1)
@@ -207,9 +206,9 @@ class FeedForward_(nn.Module):
 
 
 class Linear_Classfier(nn.Module):
-    def __init__(self, PCA_dim=50, cl=2):
+    def __init__(self, input_dim=50, cl=2):
         super().__init__()
-        self.out1 = nn.Linear(PCA_dim, cl)
+        self.out1 = nn.Linear(input_dim, cl)
 
     def forward(self, src):
         e_outputs = torch.mean(src, dim=1)

@@ -95,6 +95,15 @@ def mixups(args, data, p_idx, labels_, cell_type):
                 labels_augmented = np.concatenate([labels_augmented, [labels_augmented[i[0]]] * diff])
                 p_idx[idx] = np.concatenate([i, np.arange(labels_augmented.shape[0] - diff, labels_augmented.shape[0])])
 
+    if args.same_pheno != 0:
+        p_idx_per_pheno = {}
+        for pp in p_idx:
+            y = labels_augmented[pp[0]]
+            if p_idx_per_pheno.get(y, -2) == -2:
+                p_idx_per_pheno[y] = [pp]
+            else:
+                p_idx_per_pheno[y].append(pp)
+
     if args.inter_only:
         p_idx_augmented = []
     else:
@@ -103,8 +112,18 @@ def mixups(args, data, p_idx, labels_, cell_type):
     if args.augment_num > 0:
         print("======= inter patient mixup ... ============")
         for i in tqdm(range(args.augment_num)):
-            id_1, id_2 = np.random.randint(len(p_idx), size=2)
-            idx_1, idx_2 = p_idx[id_1], p_idx[id_2]
+            if args.same_pheno == 1:
+                temp_label = np.random.randint(len(p_idx_per_pheno))
+                id_1, id_2 = np.random.randint(len(p_idx_per_pheno[temp_label]), size=2)
+                idx_1, idx_2 = p_idx_per_pheno[temp_label][id_1], p_idx_per_pheno[temp_label][id_2]
+            elif args.same_pheno == -1:
+                i_1, i_2 = np.random.choice(len(p_idx_per_pheno), 2, replace=False)
+                id_1 = np.random.randint(len(p_idx_per_pheno[i_1]))
+                id_2 = np.random.randint(len(p_idx_per_pheno[i_2]))
+                idx_1, idx_2 = p_idx_per_pheno[i_1][id_1], p_idx_per_pheno[i_2][id_2]
+            else:
+                id_1, id_2 = np.random.randint(len(p_idx), size=2)
+                idx_1, idx_2 = p_idx[id_1], p_idx[id_2]
             diff = 0
             sampled_idx_1 = []
             sampled_idx_2 = []
