@@ -53,6 +53,7 @@ parser.add_argument("--test_dataset", type=str, default="covid_data_sex_4.pkl")
 
 parser.add_argument("--task", type=str, default="severity")
 
+parser.add_argument('--emb_dim', type=int, default=256)  # embedding dim
 parser.add_argument('--h_dim', type=int, default=128)  # hidden dim of the model
 parser.add_argument('--dropout', type=float, default=0.3)  # dropout
 
@@ -94,7 +95,7 @@ parser.add_argument('--dataset', type=str, default=None)
 parser.add_argument('--intra_mixup', type=_str2bool, default=True)
 parser.add_argument('--inter_only', type=_str2bool, default=False)
 parser.add_argument('--same_pheno', type=int, default=0)
-parser.add_argument('--augment_num', type=int, default=100)
+parser.add_argument('--augment_num', type=int, default=300)
 parser.add_argument('--alpha', type=float, default=1.0)
 parser.add_argument('--repeat', type=int, default=3)
 parser.add_argument('--all', type=int, default=0)
@@ -143,9 +144,10 @@ def train(x_train, x_valid, x_test, y_train, y_valid, y_test, id_train, id_test)
     output_class = 1
 
     if args.model == 'Transformer':
-        model = Transformer(seq_len=args.sample_cells, input_dim=input_dim, PCA_dim=args.pca, h_dim=args.h_dim, N=args.layers, heads=args.heads, dropout=args.dropout, cl=output_class)
+        model = Transformer(seq_len=args.sample_cells, input_dim=input_dim, emb_dim=args.emb_dim, h_dim=args.h_dim,
+                            N=args.layers, heads=args.heads, dropout=args.dropout, cl=output_class)
     elif args.model == 'feedforward':
-        model = FeedForward_(input_dim=input_dim, PCA_dim=args.pca, cl=output_class, dropout=args.dropout)
+        model = FeedForward(input_dim=input_dim, h_dim=args.h_dim, cl=output_class, dropout=args.dropout)
     elif args.model == 'linear':
         model = Linear_Classfier(input_dim=input_dim, cl=output_class)
 

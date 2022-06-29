@@ -114,7 +114,7 @@ class Norm(nn.Module):
         return norm
 
 
-class FeedForward(nn.Module):
+class FeedForward_(nn.Module):
     def __init__(self, h_dim1, h_dim2, d_ff=2048, dropout=0.1):
         super().__init__()
         # We set d_ff as a default to 2048
@@ -135,7 +135,7 @@ class EncoderLayer(nn.Module):
         self.norm_1 = Norm(h_dim)
         self.norm_2 = Norm(h_dim)
         self.attn = MultiHeadAttention(attention, heads, h_dim, dropout)
-        self.ff = FeedForward(h_dim, h_dim, d_ff, dropout)
+        self.ff = FeedForward_(h_dim, h_dim, d_ff, dropout)
         self.dropout_1 = nn.Dropout(dropout)
         self.dropout_2 = nn.Dropout(dropout)
 
@@ -154,12 +154,12 @@ def get_clones(module, N):
 
 
 class Encoder(nn.Module):
-    def __init__(self, PCA_dim, h_dim, N, heads, attention, d_ff, dropout):
+    def __init__(self, emb_dim, h_dim, N, heads, attention, d_ff, dropout):
         super().__init__()
         self.N = N
         # self.embed = Embedder(vocab_size, h_dim)
         # self.pe = PositionalEncoder(h_dim)
-        self.linear_1 = nn.Linear(PCA_dim, h_dim)
+        self.linear_1 = nn.Linear(emb_dim, h_dim)
         self.layers = get_clones(EncoderLayer(attention, h_dim, heads, d_ff, dropout), N)
         self.norm = Norm(h_dim)
 
@@ -174,12 +174,12 @@ class Encoder(nn.Module):
 ###### Transformer ######
 
 class Transformer(nn.Module):
-    def __init__(self, seq_len=100, input_dim=100, PCA_dim=128, h_dim=128, N=6, heads=8, attention=Attention, d_ff=2048,
+    def __init__(self, seq_len=100, input_dim=100, emb_dim=128, h_dim=128, N=6, heads=8, attention=Attention, d_ff=2048,
                  dropout=0.1, cl=6):
         super().__init__()
-        self.dimRedu = torch.nn.Sequential(nn.Dropout(p=dropout), nn.Linear(input_dim, PCA_dim), nn.ReLU(), nn.Linear(PCA_dim, PCA_dim))
-        # self.dimRedu = torch.nn.Sequential(nn.Linear(input_dim, PCA_dim), nn.ReLU(), nn.Linear(PCA_dim, PCA_dim))
-        self.encoder = Encoder(PCA_dim, h_dim, N, heads, attention, d_ff, dropout)
+        self.dimRedu = torch.nn.Sequential(nn.Dropout(p=dropout), nn.Linear(input_dim, emb_dim), nn.ReLU(), nn.Linear(emb_dim, emb_dim))
+        # self.dimRedu = torch.nn.Sequential(nn.Linear(input_dim, emb_dim), nn.ReLU(), nn.Linear(emb_dim, emb_dim))
+        self.encoder = Encoder(emb_dim, h_dim, N, heads, attention, d_ff, dropout)
         self.out = nn.Linear(h_dim, cl)
         self.attens = None
         self.dropout = nn.Dropout(dropout)
@@ -194,14 +194,14 @@ class Transformer(nn.Module):
 
 ###### Linear model ######
 
-class FeedForward_(nn.Module):
-    def __init__(self, input_dim, PCA_dim=50, cl=2, dropout=0.3):
+class FeedForward(nn.Module):
+    def __init__(self, input_dim, h_dim=50, cl=2, dropout=0.3):
         super().__init__()
-        self.ffd = FeedForward(h_dim1=input_dim, h_dim2=cl, d_ff=PCA_dim, dropout=dropout)
+        self.ff = FeedForward_(h_dim1=input_dim, h_dim2=cl, d_ff=h_dim, dropout=dropout)
 
     def forward(self, src):
         e_outputs = torch.mean(src, dim=1)
-        output = self.ffd(e_outputs)
+        output = self.ff(e_outputs)
         return output
 
 
