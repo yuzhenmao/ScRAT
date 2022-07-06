@@ -73,6 +73,9 @@ def mixup(x, x_p, alpha=1.0):
 def mixups(args, data, p_idx, labels_, cell_type):
     np.random.seed(args.seed * 2)
     max_num_cells = data.shape[0]
+    for i, pp in enumerate(p_idx):
+        if len(set(labels_[pp])) > 1:
+            print(i)
     for idx, i in enumerate(p_idx):
         if len(i) < args.min_size:
             max_num_cells += (args.min_size-len(i)+1)
@@ -89,7 +92,8 @@ def mixups(args, data, p_idx, labels_, cell_type):
                 diff = 0
                 sampled_idx_1 = []
                 sampled_idx_2 = []
-                for ct in set(cell_type[i]):
+                temp_set = set(cell_type[i])
+                for ct in temp_set:
                     i_sub = i[cell_type[i] == ct]
                     diff_sub = max((args.min_size - len(i)) * len(i_sub) // len(i), 1)
                     sampled_idx_1 += np.random.choice(i_sub, diff_sub).tolist()
@@ -115,7 +119,7 @@ def mixups(args, data, p_idx, labels_, cell_type):
         p_idx_augmented = []
     else:
         p_idx_augmented = copy.deepcopy(p_idx)
-        # inter-mixup
+    # inter-mixup
     if args.augment_num > 0:
         print("======= inter patient mixup ... ============")
         for i in tqdm(range(args.augment_num)):
@@ -135,14 +139,13 @@ def mixups(args, data, p_idx, labels_, cell_type):
             sampled_idx_1 = []
             sampled_idx_2 = []
             set_intersection = set(cell_type_augmented[idx_1]).intersection(set(cell_type_augmented[idx_2]))
-            while diff < args.min_size:
+            while diff < (args.min_size // 2):
                 for ct in set_intersection:
                     i_sub_1 = idx_1[cell_type_augmented[idx_1] == ct]
                     i_sub_2 = idx_2[cell_type_augmented[idx_2] == ct]
                     diff_sub = max(int(args.min_size * (len(i_sub_1)/len(idx_1)+len(i_sub_2)/len(idx_2)) / 2), 1)
                     sampled_idx_1 += np.random.choice(i_sub_1, diff_sub).tolist()
                     sampled_idx_2 += np.random.choice(i_sub_2, diff_sub).tolist()
-                    cell_type_augmented = np.concatenate([cell_type_augmented, [ct] * diff_sub])
                     diff += diff_sub
             x_mix, lam = mixup(data_augmented[sampled_idx_1], data_augmented[sampled_idx_2], alpha=args.alpha)
             data_augmented[last:(last+x_mix.shape[0])] = x_mix
