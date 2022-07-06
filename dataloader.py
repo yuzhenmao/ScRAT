@@ -55,6 +55,11 @@ def Covid_data(args):
     for i in p_ids:
         idx = indices[patient_id == i]
         if labels_[idx[0]] > -1:
-            p_idx.append(idx)
+            if len(set(labels_[idx])) > 1:
+                for ii in set(labels_[idx]):
+                    iidx = idx[labels_[idx] == ii]
+                    p_idx.append(iidx)
+            else:
+                p_idx.append(idx)
 
     return [], p_idx, labels_, cell_type, patient_id, origin

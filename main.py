@@ -140,7 +140,7 @@ def train(x_train, x_valid, x_test, y_train, y_valid, y_test, id_train, id_test,
     output_class = 1
 
     if args.model == 'Transformer':
-        model = Transformer(seq_len=args.sample_cells, input_dim= input_dim, emb_dim=args.emb_dim, h_dim=args.h_dim, N=args.layers, heads=args.heads, dropout=args.dropout, cl=output_class)
+        model = Transformer(seq_len=args.sample_cells, input_dim= input_dim, emb_dim=args.emb_dim, h_dim=args.h_dim, N=args.layers, heads=args.heads, dropout=args.dropout, cl=output_class, pca=args.pca)
     elif args.model == 'feedforward':
         model = FeedForward(input_dim=input_dim, h_dim=args.h_dim, cl=output_class, dropout=args.dropout)
     elif args.model == 'linear':
