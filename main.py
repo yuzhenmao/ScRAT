@@ -17,15 +17,13 @@ import json
 from tqdm import tqdm
 import collections
 import pdb
+import psutil
 
 from model_baseline import *
 # from model_informer import Informer
 # from model_longformer import Longformer
 # from model_reformer import Reformer
 import matplotlib.pyplot as plt
-
-# import warnings
-# warnings.filterwarnings("ignore")
 
 from dataloader import *
 
@@ -72,8 +70,6 @@ parser.add_argument("--train_patients", type=int, default=None,
                         help="limit number of training patients")
 parser.add_argument("--cells", type=int, default=None,
                         help="limit number of cells")
-parser.add_argument("--pca", type=int, default=50,
-                        help="dimension of principal components")
 parser.add_argument("-f", "--figroot", type=str, default=None,
                         help="root for optional figures")
 parser.add_argument("--sample_cells", type=int, default=500,
@@ -95,12 +91,13 @@ parser.add_argument('--dataset', type=str, default=None)
 parser.add_argument('--intra_mixup', type=_str2bool, default=True)
 parser.add_argument('--inter_only', type=_str2bool, default=False)
 parser.add_argument('--same_pheno', type=int, default=0)
-parser.add_argument('--augment_num', type=int, default=300)
+parser.add_argument('--augment_num', type=int, default=0)
 parser.add_argument('--alpha', type=float, default=1.0)
 parser.add_argument('--repeat', type=int, default=3)
 parser.add_argument('--all', type=int, default=0)
 parser.add_argument('--min_size', type=int, default=1000)
 parser.add_argument('--n_splits', type=int, default=5)
+parser.add_argument('--pca', type=_str2bool, default=False)
 
 
 args = parser.parse_args()
@@ -118,7 +115,7 @@ patient_summary = {}
 # x_train, x_valid, x_test, y_train, y_valid, y_test, id_train, id_test = Covid_data(args)
 
 
-def train(x_train, x_valid, x_test, y_train, y_valid, y_test, id_train, id_test):
+def train(x_train, x_valid, x_test, y_train, y_valid, y_test, id_train, id_test, data_augmented):
     # x_train, x_valid, x_test, y_train, y_valid, y_test = \
     #     torch.from_numpy(x_train).float(), torch.from_numpy(x_valid).float(), torch.from_numpy(x_test).float(), \
     #     torch.from_numpy(y_train).long(), torch.from_numpy(y_valid).long(), torch.from_numpy(y_test).long()
@@ -139,13 +136,11 @@ def train(x_train, x_valid, x_test, y_train, y_valid, y_test, id_train, id_test)
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-    seq_len = 100
-    input_dim = x_train[0].shape[-1]
+    input_dim = data_augmented[0].shape[-1]
     output_class = 1
 
     if args.model == 'Transformer':
-        model = Transformer(seq_len=args.sample_cells, input_dim=input_dim, emb_dim=args.emb_dim, h_dim=args.h_dim,
-                            N=args.layers, heads=args.heads, dropout=args.dropout, cl=output_class)
+        model = Transformer(seq_len=args.sample_cells, input_dim= input_dim, emb_dim=args.emb_dim, h_dim=args.h_dim, N=args.layers, heads=args.heads, dropout=args.dropout, cl=output_class)
     elif args.model == 'feedforward':
         model = FeedForward(input_dim=input_dim, h_dim=args.h_dim, cl=output_class, dropout=args.dropout)
     elif args.model == 'linear':
@@ -163,11 +158,11 @@ def train(x_train, x_valid, x_test, y_train, y_valid, y_test, id_train, id_test)
     # training and evaluation
     ################################################################
     optimizer = Adam(model.parameters(), lr=args.learning_rate, weight_decay=args.weight_decay)
-    scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=50, gamma=0.1, last_epoch=-1)
+    scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=100, gamma=0.1, last_epoch=-1)
     sigmoid = torch.nn.Sigmoid().to(device)
 
     max_acc, max_epoch, max_auc, max_loss = 0, 0, 0, 0
-    test_accs, valid_accs, train_losses, train_accs = [], [], [], []
+    test_accs, valid_accs, train_losses, train_accs, test_aucs = [], [], [], [], []
     wrongs = []
     for ep in range(1, args.epochs+1):
         model.train()
@@ -177,16 +172,12 @@ def train(x_train, x_valid, x_test, y_train, y_valid, y_test, id_train, id_test)
         #true = []
 
         for batch in tqdm(train_loader):
-            x_ = batch[0].to(device)
+            x_ = torch.from_numpy(data_augmented[batch[0]]).float().to(device)
             y_ = batch[1].to(device)
 
             optimizer.zero_grad()
 
             out = model(x_)
-
-            # for yy in range(len(y_)):
-            #     if y_[yy] != 1 and y_[yy] != 0:
-            #         print(sigmoid(out[yy]), y_[yy])
 
             loss = nn.BCELoss()(sigmoid(out), y_)
             loss.backward()
@@ -216,7 +207,7 @@ def train(x_train, x_valid, x_test, y_train, y_valid, y_test, id_train, id_test)
             wrong = []
             with torch.no_grad():
                 for batch in (test_loader):
-                    x_ = batch[0].to(device).squeeze(0)
+                    x_ = torch.from_numpy(data_augmented[batch[0]]).float().to(device).squeeze(0)
                     y_ = batch[1].to(device)
 
                     out = model(x_)
@@ -232,7 +223,7 @@ def train(x_train, x_valid, x_test, y_train, y_valid, y_test, id_train, id_test)
                     #         stats[types] += 1
 
                     # majority voting
-                    f = lambda x: 1 if x >= 0.5 else 0
+                    f = lambda x: 1 if x > 0.5 else 0
                     func = np.vectorize(f)
                     out = np.argmax(np.bincount(func(out).reshape(-1))).reshape(-1)
                     pred.append(out)
@@ -241,7 +232,7 @@ def train(x_train, x_valid, x_test, y_train, y_valid, y_test, id_train, id_test)
                     if out[0] != y_[0][0]:
                         wrong.append(patient_id[batch[2][0][0][0]])
             pred = np.concatenate(pred)
-            true = np.concatenate(true).reshape(-1)
+            true = np.concatenate(true)
             if len(wrongs) == 0:
                 wrongs = set(wrong)
             else:
@@ -253,12 +244,11 @@ def train(x_train, x_valid, x_test, y_train, y_valid, y_test, id_train, id_test)
             train_acc = 0
             valid_acc = 0
 
-            # fpr, tpr, thresholds = metrics.roc_curve(true, pred, pos_label=1)
-            # test_AUC = metrics.auc(fpr, tpr)
-            test_AUC = 0
+            fpr, tpr, thresholds = metrics.roc_curve(true, pred, pos_label=1)
+            test_auc = metrics.auc(fpr, tpr)
+            test_aucs.append(test_auc)
 
-            test_acc = accuracy_score(true, pred)
-
+            test_acc = accuracy_score(true.reshape(-1), pred)
             test_accs.append(test_acc)
 
 
@@ -290,17 +280,20 @@ def train(x_train, x_valid, x_test, y_train, y_valid, y_test, id_train, id_test)
             # train_acc = accuracy_score(true.reshape(-1), pred)
             # train_accs.append(train_acc)
 
-            if test_acc >= max_acc:
+            if test_auc >= max_auc:
                 max_epoch = ep
-                max_acc = test_acc
+                max_auc = test_auc
                 max_loss = train_loss
+
+            if test_acc >= max_acc:
+                max_acc = test_acc
 
             #print("Epoch %d, Train Loss %f, Train AUC %f Test AUC %f,"%(ep, train_loss, AUC, test_AUC))
             # print("Epoch %d, Train Loss %f, Train ACC %f, Valid ACC %f, Test ACC %f,"%(ep, train_loss, train_acc, valid_acc, test_acc))
-            print("Epoch %d, Train Loss %f, Test ACC %f,"%(ep, train_loss, test_acc))
+            # print("Epoch %d, Train Loss %f, Test ACC %f,"%(ep, train_loss, test_acc))
 
         # print(stats)
-    print("Best performance: Epoch %d, Loss %f, Test ACC %f," % (max_epoch, max_loss, max_acc))
+    print("Best performance: Epoch %d, Loss %f, Test ACC %f, Test AUC %f" % (max_epoch, max_loss, max_acc, max_auc))
     for w in wrongs:
         v = patient_summary.get(w, 0)
         patient_summary[w] = v + 1
@@ -355,15 +348,13 @@ def train(x_train, x_valid, x_test, y_train, y_valid, y_test, id_train, id_test)
     #
     # fig.write_html(args.dir + '/' + args.train_dataset[24:-4] + '_' + args.test_dataset[30:-4] + '.html')
 
-    return max_acc
+    return max_auc, max_acc
 
 
 _, p_idx, labels_, cell_type, patient_id, data = Covid_data(args)
 rkf = RepeatedKFold(n_splits=args.n_splits, n_repeats=args.repeat, random_state=args.seed+3)
 num = np.arange(len(p_idx))
-accuracy = []
-# TODO two methods: one is using batch-size=1, another is uisng batch-size=num_samples
-# TODO the first method keeps this veriosn; for the second method, use the one in test_index
+accuracy, aucs = [], []
 
 for train_index, test_index in rkf.split(num):
     x_train = []
@@ -379,21 +370,20 @@ for train_index, test_index in rkf.split(num):
     individual_train, individual_test = sampling(args, train_p_idx, [p_idx[idx] for idx in test_index], labels_augmented)
     for t in individual_train:
         id, label = [id_l[0] for id_l in t], [id_l[1] for id_l in t]
-        x_train += [data_augmented[ii] for ii in id]
+        x_train += [ii for ii in id]
         y_train += (label)
         id_train += (id)
     for t in individual_test:
         id, label = [id_l[0] for id_l in t], [id_l[1] for id_l in t]
-        x_test.append([data_augmented[ii] for ii in id])
+        x_test.append([ii for ii in id])
         y_test.append(label[0])
         id_test.append(id)
-
     x_train, x_valid, x_test, y_train, y_valid, y_test = x_train, [],  x_test, np.array(y_train).reshape([-1, 1]), \
                                                         np.array([]).reshape([-1, 1]), np.array(y_test).reshape([-1, 1])
-
-    acc = train(x_train, x_valid, x_test, y_train, y_valid, y_test, id_train, id_test)
+    auc, acc = train(x_train, x_valid, x_test, y_train, y_valid, y_test, id_train, id_test, data_augmented)
+    aucs.append(auc)
     accuracy.append(acc)
 
 
-print("Best performance: Test ACC %f," % (np.average(accuracy)))
+print("Best performance: Test ACC %f,   Test AUC %f" % (np.average(accuracy), np.average(aucs)))
 print(patient_summary)

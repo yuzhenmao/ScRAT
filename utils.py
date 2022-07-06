@@ -42,13 +42,13 @@ class MyDataset(Dataset):
 
     def __getitem__(self, index):
         if self.train:
-            x, y, cell_id = torch.from_numpy(np.array(self.x_train[index])).float(), \
+            x, y, cell_id = torch.from_numpy(np.array(self.x_train[index])), \
                             torch.from_numpy(self.y_train[index]).float(), self.id_train[index]
         elif self.test:
-            x, y, cell_id = torch.from_numpy(np.array(self.x_test[index])).float(), \
+            x, y, cell_id = torch.from_numpy(np.array(self.x_test[index])), \
                             torch.from_numpy(self.y_test[index]).float(), self.id_test[index]
         elif self.val:
-            x, y, cell_id = torch.from_numpy(np.array(self.x_valid[index])).float(), \
+            x, y, cell_id = torch.from_numpy(np.array(self.x_valid[index])), \
                             torch.from_numpy(self.y_valid[index]).float(), []
 
         return x, y, cell_id
@@ -58,7 +58,7 @@ class MyDataset(Dataset):
         xs = torch.stack([batch[0] for batch in batches if len(batch) > 0])
         ys = torch.stack([batch[1] for batch in batches if len(batch) > 0])
         ids = [batch[2] for batch in batches if len(batch) > 0]
-        return torch.FloatTensor(xs), torch.FloatTensor(ys), ids
+        return xs, torch.FloatTensor(ys), ids
 
 
 def mixup(x, x_p, alpha=1.0):
@@ -72,7 +72,13 @@ def mixup(x, x_p, alpha=1.0):
 
 def mixups(args, data, p_idx, labels_, cell_type):
     np.random.seed(args.seed * 2)
-    data_augmented = copy.deepcopy(data)
+    max_num_cells = data.shape[0]
+    for idx, i in enumerate(p_idx):
+        if len(i) < args.min_size:
+            max_num_cells += (args.min_size-len(i)+1)
+    data_augmented = np.zeros([max_num_cells+2*args.min_size*args.augment_num, data.shape[1]])
+    data_augmented[:data.shape[0]] = data
+    last = data.shape[0]
     labels_augmented = copy.deepcopy(labels_)
     cell_type_augmented = copy.deepcopy(cell_type)
     # intra-mixup
@@ -91,7 +97,8 @@ def mixups(args, data, p_idx, labels_, cell_type):
                     cell_type_augmented = np.concatenate([cell_type_augmented, [ct] * diff_sub])
                     diff += diff_sub
                 x_mix, lam = mixup(data[sampled_idx_1], data[sampled_idx_2], alpha=args.alpha)
-                data_augmented = np.concatenate([data_augmented, x_mix])
+                data_augmented[last:(last+x_mix.shape[0])] = x_mix
+                last += x_mix.shape[0]
                 labels_augmented = np.concatenate([labels_augmented, [labels_augmented[i[0]]] * diff])
                 p_idx[idx] = np.concatenate([i, np.arange(labels_augmented.shape[0] - diff, labels_augmented.shape[0])])
 
@@ -132,17 +139,18 @@ def mixups(args, data, p_idx, labels_, cell_type):
                 for ct in set_intersection:
                     i_sub_1 = idx_1[cell_type_augmented[idx_1] == ct]
                     i_sub_2 = idx_2[cell_type_augmented[idx_2] == ct]
-                    diff_sub = max(args.min_size * (len(i_sub_1)+len(i_sub_2)) // (len(idx_1)+len(idx_2)), 1)
+                    diff_sub = max(int(args.min_size * (len(i_sub_1)/len(idx_1)+len(i_sub_2)/len(idx_2)) / 2), 1)
                     sampled_idx_1 += np.random.choice(i_sub_1, diff_sub).tolist()
                     sampled_idx_2 += np.random.choice(i_sub_2, diff_sub).tolist()
                     cell_type_augmented = np.concatenate([cell_type_augmented, [ct] * diff_sub])
                     diff += diff_sub
             x_mix, lam = mixup(data_augmented[sampled_idx_1], data_augmented[sampled_idx_2], alpha=args.alpha)
-            data_augmented = np.concatenate([data_augmented, x_mix])
+            data_augmented[last:(last+x_mix.shape[0])] = x_mix
+            last += x_mix.shape[0]
             labels_augmented = np.concatenate([labels_augmented, [lam * labels_augmented[idx_1[0]] + (1 - lam) * labels_augmented[idx_2[0]]] * diff])
             p_idx_augmented.append(np.arange(labels_augmented.shape[0] - diff, labels_augmented.shape[0]))
 
-    return data_augmented, p_idx_augmented, labels_augmented
+    return data_augmented[:last], p_idx_augmented, labels_augmented
 
 
 def sampling(args, train_p_idx, test_p_idx, labels_):
