@@ -61,11 +61,12 @@ class MyDataset(Dataset):
         return xs, torch.FloatTensor(ys), ids
 
 
-def mixup(x, x_p, alpha=1.0, size=1):
+def mixup(x, x_p, alpha=1.0, size=1, lam=None):
     batch_size = min(x.shape[0], x_p.shape[0])
-    lam = np.random.beta(alpha, alpha)
-    if size > 1:
-        lam = np.random.beta(alpha, alpha, size=size).reshape([-1, 1])
+    if lam == None:
+        lam = np.random.beta(alpha, alpha)
+        if size > 1:
+            lam = np.random.beta(alpha, alpha, size=size).reshape([-1, 1])
     # x = np.random.permutation(x)
     # x_p = np.random.permutation(x_p)
     x_mix = lam * x[:batch_size] + (1 - lam) * x_p[:batch_size]
@@ -82,7 +83,7 @@ def mixups(args, data, p_idx, labels_, cell_type):
             print(i)
     ###################
     if args.intra_only:
-        data_augmented = np.zeros([2*args.min_size*(args.augment_num + len(p_idx)), data.shape[1]])
+        data_augmented = np.zeros([max_num_cells+args.min_size*(args.augment_num + len(p_idx)), data.shape[1]])
         last = 0
         labels_augmented = []
         cell_type_augmented = []
@@ -106,7 +107,7 @@ def mixups(args, data, p_idx, labels_, cell_type):
                 temp_set = set(cell_type[i])
                 for ct in temp_set:
                     i_sub = i[cell_type[i] == ct]
-                    diff_sub = args.min_size * len(i_sub) // len(i) + 1
+                    diff_sub = max(args.min_size, len(i)) * len(i_sub) // len(i) + 1
                     sampled_idx_1 += np.random.choice(i_sub, diff_sub).tolist()
                     sampled_idx_2 += np.random.choice(i_sub, diff_sub).tolist()
                     cell_type_augmented = np.concatenate([cell_type_augmented, [ct] * diff_sub])
@@ -159,6 +160,7 @@ def mixups(args, data, p_idx, labels_, cell_type):
     if args.augment_num > 0:
         print("======= inter patient mixup ... ============")
         for i in tqdm(range(args.augment_num)):
+            lam = np.random.beta(args.alpha, args.alpha)
             if args.same_pheno == 1:
                 temp_label = np.random.randint(len(p_idx_per_pheno))
                 id_1, id_2 = np.random.randint(len(p_idx_per_pheno[temp_label]), size=2)
@@ -179,11 +181,11 @@ def mixups(args, data, p_idx, labels_, cell_type):
                 for ct in set_intersection:
                     i_sub_1 = idx_1[cell_type_augmented[idx_1] == ct]
                     i_sub_2 = idx_2[cell_type_augmented[idx_2] == ct]
-                    diff_sub = max(int(args.min_size * (len(i_sub_1)/len(idx_1)+len(i_sub_2)/len(idx_2)) / 2), 1)
+                    diff_sub = max(int(args.min_size * (lam*len(i_sub_1)/len(idx_1)+(1-lam)*len(i_sub_2)/len(idx_2))), 1)
                     sampled_idx_1 += np.random.choice(i_sub_1, diff_sub).tolist()
                     sampled_idx_2 += np.random.choice(i_sub_2, diff_sub).tolist()
                     diff += diff_sub
-            x_mix, lam = mixup(data_augmented[sampled_idx_1], data_augmented[sampled_idx_2], alpha=args.alpha)
+            x_mix, _ = mixup(data_augmented[sampled_idx_1], data_augmented[sampled_idx_2], alpha=args.alpha, lam=lam)
             data_augmented[last:(last+x_mix.shape[0])] = x_mix
             last += x_mix.shape[0]
             labels_augmented = np.concatenate([labels_augmented, [lam * labels_augmented[idx_1[0]] + (1 - lam) * labels_augmented[idx_2[0]]] * diff])
