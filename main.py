@@ -39,7 +39,7 @@ parser = argparse.ArgumentParser(description='scRNA diagnosis')
 
 parser.add_argument('--seed', type=int, default=240)
 
-parser.add_argument('--batch_size', type=int, default=16)
+parser.add_argument('--batch_size', type=int, default=1)
 parser.add_argument('--learning_rate', type=float, default=1e-3)
 parser.add_argument('--weight_decay', type=float, default=1e-4)
 parser.add_argument('--epochs', type=int, default=50)
@@ -98,6 +98,8 @@ parser.add_argument('--all', type=int, default=0)
 parser.add_argument('--min_size', type=int, default=1000)
 parser.add_argument('--n_splits', type=int, default=5)
 parser.add_argument('--pca', type=_str2bool, default=False)
+parser.add_argument('--mix_type', type=int, default=0)
+parser.add_argument('--intra_only', type=_str2bool, default=False)
 
 
 args = parser.parse_args()
@@ -115,7 +117,7 @@ patient_summary = {}
 # x_train, x_valid, x_test, y_train, y_valid, y_test, id_train, id_test = Covid_data(args)
 
 
-def train(x_train, x_valid, x_test, y_train, y_valid, y_test, id_train, id_test, data_augmented):
+def train(x_train, x_valid, x_test, y_train, y_valid, y_test, id_train, id_test, data_augmented, data):
     # x_train, x_valid, x_test, y_train, y_valid, y_test = \
     #     torch.from_numpy(x_train).float(), torch.from_numpy(x_valid).float(), torch.from_numpy(x_test).float(), \
     #     torch.from_numpy(y_train).long(), torch.from_numpy(y_valid).long(), torch.from_numpy(y_test).long()
@@ -207,7 +209,7 @@ def train(x_train, x_valid, x_test, y_train, y_valid, y_test, id_train, id_test,
             wrong = []
             with torch.no_grad():
                 for batch in (test_loader):
-                    x_ = torch.from_numpy(data_augmented[batch[0]]).float().to(device).squeeze(0)
+                    x_ = torch.from_numpy(data[batch[0]]).float().to(device).squeeze(0)
                     y_ = batch[1].to(device)
 
                     out = model(x_)
@@ -367,7 +369,7 @@ for train_index, test_index in rkf.split(num):
     id_test = []
     # only use the augmented data (intra-mixup, inter-mixup) as train data
     data_augmented, train_p_idx, labels_augmented = mixups(args, data, [p_idx[idx] for idx in train_index], labels_, cell_type)
-    individual_train, individual_test = sampling(args, train_p_idx, [p_idx[idx] for idx in test_index], labels_augmented)
+    individual_train, individual_test = sampling(args, train_p_idx, [p_idx[idx] for idx in test_index], labels_, labels_augmented)
     for t in individual_train:
         id, label = [id_l[0] for id_l in t], [id_l[1] for id_l in t]
         x_train += [ii for ii in id]
@@ -380,7 +382,7 @@ for train_index, test_index in rkf.split(num):
         id_test.append(id)
     x_train, x_valid, x_test, y_train, y_valid, y_test = x_train, [],  x_test, np.array(y_train).reshape([-1, 1]), \
                                                         np.array([]).reshape([-1, 1]), np.array(y_test).reshape([-1, 1])
-    auc, acc = train(x_train, x_valid, x_test, y_train, y_valid, y_test, id_train, id_test, data_augmented)
+    auc, acc = train(x_train, x_valid, x_test, y_train, y_valid, y_test, id_train, id_test, data_augmented, data)
     aucs.append(auc)
     accuracy.append(acc)
 

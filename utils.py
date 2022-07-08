@@ -61,9 +61,11 @@ class MyDataset(Dataset):
         return xs, torch.FloatTensor(ys), ids
 
 
-def mixup(x, x_p, alpha=1.0):
+def mixup(x, x_p, alpha=1.0, size=1):
     batch_size = min(x.shape[0], x_p.shape[0])
     lam = np.random.beta(alpha, alpha)
+    if size > 1:
+        lam = np.random.beta(alpha, alpha, size=size).reshape([-1, 1])
     # x = np.random.permutation(x)
     # x_p = np.random.permutation(x_p)
     x_mix = lam * x[:batch_size] + (1 - lam) * x_p[:batch_size]
@@ -73,38 +75,72 @@ def mixup(x, x_p, alpha=1.0):
 def mixups(args, data, p_idx, labels_, cell_type):
     np.random.seed(args.seed * 2)
     max_num_cells = data.shape[0]
+    ###################
+    # check the dataset
     for i, pp in enumerate(p_idx):
         if len(set(labels_[pp])) > 1:
             print(i)
-    for idx, i in enumerate(p_idx):
-        if len(i) < args.min_size:
-            max_num_cells += (args.min_size-len(i)+1)
-    data_augmented = np.zeros([max_num_cells+2*args.min_size*args.augment_num, data.shape[1]])
-    data_augmented[:data.shape[0]] = data
-    last = data.shape[0]
-    labels_augmented = copy.deepcopy(labels_)
-    cell_type_augmented = copy.deepcopy(cell_type)
+    ###################
+    if args.intra_only:
+        data_augmented = np.zeros([2*args.min_size*(args.augment_num + len(p_idx)), data.shape[1]])
+        last = 0
+        labels_augmented = []
+        cell_type_augmented = []
+    else:
+        for idx, i in enumerate(p_idx):
+            if len(i) < args.min_size:
+                max_num_cells += (args.min_size-len(i)+1)
+        data_augmented = np.zeros([max_num_cells+2*args.min_size*args.augment_num, data.shape[1]])
+        data_augmented[:data.shape[0]] = data
+        last = data.shape[0]
+        labels_augmented = copy.deepcopy(labels_)
+        cell_type_augmented = copy.deepcopy(cell_type)
     # intra-mixup
     if args.intra_mixup is True:
         print("======= intra patient mixup ... ============")
-        for idx, i in enumerate(p_idx):
-            if len(i) < args.min_size:
+        if args.intra_only:
+            for idx, i in (enumerate(p_idx)):
                 diff = 0
                 sampled_idx_1 = []
                 sampled_idx_2 = []
                 temp_set = set(cell_type[i])
                 for ct in temp_set:
                     i_sub = i[cell_type[i] == ct]
-                    diff_sub = max((args.min_size - len(i)) * len(i_sub) // len(i), 1)
+                    diff_sub = args.min_size * len(i_sub) // len(i) + 1
                     sampled_idx_1 += np.random.choice(i_sub, diff_sub).tolist()
                     sampled_idx_2 += np.random.choice(i_sub, diff_sub).tolist()
                     cell_type_augmented = np.concatenate([cell_type_augmented, [ct] * diff_sub])
                     diff += diff_sub
-                x_mix, lam = mixup(data[sampled_idx_1], data[sampled_idx_2], alpha=args.alpha)
+                if args.mix_type == 1:
+                    x_mix, _ = mixup(data[sampled_idx_1], data[sampled_idx_2], alpha=args.alpha, size=len(sampled_idx_1))
+                else:
+                    x_mix, _ = mixup(data[sampled_idx_1], data[sampled_idx_2], alpha=args.alpha)
                 data_augmented[last:(last+x_mix.shape[0])] = x_mix
                 last += x_mix.shape[0]
-                labels_augmented = np.concatenate([labels_augmented, [labels_augmented[i[0]]] * diff])
-                p_idx[idx] = np.concatenate([i, np.arange(labels_augmented.shape[0] - diff, labels_augmented.shape[0])])
+                labels_augmented = np.concatenate([labels_augmented, [labels_[i[0]]] * diff])
+                p_idx[idx] = np.arange(labels_augmented.shape[0] - diff, labels_augmented.shape[0])
+        else:
+            for idx, i in enumerate(p_idx):
+                if len(i) < args.min_size:
+                    diff = 0
+                    sampled_idx_1 = []
+                    sampled_idx_2 = []
+                    temp_set = set(cell_type[i])
+                    for ct in temp_set:
+                        i_sub = i[cell_type[i] == ct]
+                        diff_sub = max((args.min_size - len(i)) * len(i_sub) // len(i), 1)
+                        sampled_idx_1 += np.random.choice(i_sub, diff_sub).tolist()
+                        sampled_idx_2 += np.random.choice(i_sub, diff_sub).tolist()
+                        cell_type_augmented = np.concatenate([cell_type_augmented, [ct] * diff_sub])
+                        diff += diff_sub
+                    if args.mix_type == 1:
+                        x_mix, _ = mixup(data[sampled_idx_1], data[sampled_idx_2], alpha=args.alpha, size=len(sampled_idx_1))
+                    else:
+                        x_mix, _ = mixup(data[sampled_idx_1], data[sampled_idx_2], alpha=args.alpha)
+                    data_augmented[last:(last+x_mix.shape[0])] = x_mix
+                    last += x_mix.shape[0]
+                    labels_augmented = np.concatenate([labels_augmented, [labels_augmented[i[0]]] * diff])
+                    p_idx[idx] = np.concatenate([i, np.arange(labels_augmented.shape[0] - diff, labels_augmented.shape[0])])
 
     if args.same_pheno != 0:
         p_idx_per_pheno = {}
@@ -115,7 +151,7 @@ def mixups(args, data, p_idx, labels_, cell_type):
             else:
                 p_idx_per_pheno[y].append(pp)
 
-    if args.inter_only:
+    if args.inter_only and (args.augment_num > 0):
         p_idx_augmented = []
     else:
         p_idx_augmented = copy.deepcopy(p_idx)
@@ -156,13 +192,13 @@ def mixups(args, data, p_idx, labels_, cell_type):
     return data_augmented[:last], p_idx_augmented, labels_augmented
 
 
-def sampling(args, train_p_idx, test_p_idx, labels_):
+def sampling(args, train_p_idx, test_p_idx, labels_, labels_augmented):
     np.random.seed(args.seed * 3)
     if args.all == 0:
         individual_train = []
         individual_test = []
         for idx in train_p_idx:
-            y = labels_[idx[0]]
+            y = labels_augmented[idx[0]]
             if idx.shape[0] < args.train_sample_cells:
                 sample_cells = idx.shape[0] // 2
             else:
@@ -187,7 +223,7 @@ def sampling(args, train_p_idx, test_p_idx, labels_):
         individual_train = []
         individual_test = []
         for idx in train_p_idx:
-            y = labels_[idx[0]]
+            y = labels_augmented[idx[0]]
             temp = []
             sample = idx
             temp.append((sample, y))
