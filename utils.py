@@ -6,6 +6,7 @@ from torch.utils.data import Dataset
 import pdb
 from tqdm import tqdm
 
+
 class MyDataset(Dataset):
     def __init__(self, x_train, x_valid, x_test, y_train, y_valid, y_test, id_train, id_test, fold='train'):
         fold = fold.lower()
@@ -53,12 +54,20 @@ class MyDataset(Dataset):
 
         return x, y, cell_id
 
-
     def collate(self, batches):
         xs = torch.stack([batch[0] for batch in batches if len(batch) > 0])
         ys = torch.stack([batch[1] for batch in batches if len(batch) > 0])
         ids = [batch[2] for batch in batches if len(batch) > 0]
         return xs, torch.FloatTensor(ys), ids
+
+
+def add_noise(cells):
+    mean = 0
+    var = 1e-4
+    sigma = var ** 0.5
+    gauss = np.random.normal(mean, sigma, cells.shape)
+    noisy = cells + gauss
+    return noisy
 
 
 def mixup(x, x_p, alpha=1.0, size=1, lam=None):
@@ -82,16 +91,14 @@ def mixups(args, data, p_idx, labels_, cell_type):
         if len(set(labels_[pp])) > 1:
             print(i)
     ###################
+    for idx, i in enumerate(p_idx):
+        max_num_cells += (max(args.min_size - len(i), 0) + 100)
+    data_augmented = np.zeros([max_num_cells + (args.min_size + 100) * args.augment_num, data.shape[1]])
     if args.intra_only:
-        data_augmented = np.zeros([max_num_cells+args.min_size*(args.augment_num + len(p_idx)), data.shape[1]])
         last = 0
         labels_augmented = []
         cell_type_augmented = []
     else:
-        for idx, i in enumerate(p_idx):
-            if len(i) < args.min_size:
-                max_num_cells += (args.min_size-len(i)+1)
-        data_augmented = np.zeros([max_num_cells+2*args.min_size*args.augment_num, data.shape[1]])
         data_augmented[:data.shape[0]] = data
         last = data.shape[0]
         labels_augmented = copy.deepcopy(labels_)
@@ -113,10 +120,11 @@ def mixups(args, data, p_idx, labels_, cell_type):
                     cell_type_augmented = np.concatenate([cell_type_augmented, [ct] * diff_sub])
                     diff += diff_sub
                 if args.mix_type == 1:
-                    x_mix, _ = mixup(data[sampled_idx_1], data[sampled_idx_2], alpha=args.alpha, size=len(sampled_idx_1))
+                    x_mix, _ = mixup(data[sampled_idx_1], data[sampled_idx_2], alpha=args.alpha,
+                                     size=len(sampled_idx_1))
                 else:
                     x_mix, _ = mixup(data[sampled_idx_1], data[sampled_idx_2], alpha=args.alpha)
-                data_augmented[last:(last+x_mix.shape[0])] = x_mix
+                data_augmented[last:(last + x_mix.shape[0])] = x_mix
                 last += x_mix.shape[0]
                 labels_augmented = np.concatenate([labels_augmented, [labels_[i[0]]] * diff])
                 p_idx[idx] = np.arange(labels_augmented.shape[0] - diff, labels_augmented.shape[0])
@@ -135,13 +143,15 @@ def mixups(args, data, p_idx, labels_, cell_type):
                         cell_type_augmented = np.concatenate([cell_type_augmented, [ct] * diff_sub])
                         diff += diff_sub
                     if args.mix_type == 1:
-                        x_mix, _ = mixup(data[sampled_idx_1], data[sampled_idx_2], alpha=args.alpha, size=len(sampled_idx_1))
+                        x_mix, _ = mixup(data[sampled_idx_1], data[sampled_idx_2], alpha=args.alpha,
+                                         size=len(sampled_idx_1))
                     else:
                         x_mix, _ = mixup(data[sampled_idx_1], data[sampled_idx_2], alpha=args.alpha)
-                    data_augmented[last:(last+x_mix.shape[0])] = x_mix
+                    data_augmented[last:(last + x_mix.shape[0])] = x_mix
                     last += x_mix.shape[0]
                     labels_augmented = np.concatenate([labels_augmented, [labels_augmented[i[0]]] * diff])
-                    p_idx[idx] = np.concatenate([i, np.arange(labels_augmented.shape[0] - diff, labels_augmented.shape[0])])
+                    p_idx[idx] = np.concatenate(
+                        [i, np.arange(labels_augmented.shape[0] - diff, labels_augmented.shape[0])])
 
     if args.same_pheno != 0:
         p_idx_per_pheno = {}
@@ -174,21 +184,36 @@ def mixups(args, data, p_idx, labels_, cell_type):
                 id_1, id_2 = np.random.randint(len(p_idx), size=2)
                 idx_1, idx_2 = p_idx[id_1], p_idx[id_2]
             diff = 0
-            sampled_idx_1 = []
-            sampled_idx_2 = []
-            set_intersection = set(cell_type_augmented[idx_1]).intersection(set(cell_type_augmented[idx_2]))
+            set_union = set(cell_type_augmented[idx_1]).union(set(cell_type_augmented[idx_2]))
             while diff < (args.min_size // 2):
-                for ct in set_intersection:
+                for ct in set_union:
                     i_sub_1 = idx_1[cell_type_augmented[idx_1] == ct]
                     i_sub_2 = idx_2[cell_type_augmented[idx_2] == ct]
-                    diff_sub = max(int(args.min_size * (lam*len(i_sub_1)/len(idx_1)+(1-lam)*len(i_sub_2)/len(idx_2))), 1)
-                    sampled_idx_1 += np.random.choice(i_sub_1, diff_sub).tolist()
-                    sampled_idx_2 += np.random.choice(i_sub_2, diff_sub).tolist()
+                    diff_sub = max(
+                        int(args.min_size * (lam * len(i_sub_1) / len(idx_1) + (1 - lam) * len(i_sub_2) / len(idx_2))),
+                        1)
                     diff += diff_sub
-            x_mix, _ = mixup(data_augmented[sampled_idx_1], data_augmented[sampled_idx_2], alpha=args.alpha, lam=lam)
-            data_augmented[last:(last+x_mix.shape[0])] = x_mix
-            last += x_mix.shape[0]
-            labels_augmented = np.concatenate([labels_augmented, [lam * labels_augmented[idx_1[0]] + (1 - lam) * labels_augmented[idx_2[0]]] * diff])
+                    if len(i_sub_1) == 0:
+                        sampled_idx_1 = [-1] * diff_sub
+                        sampled_idx_2 = np.random.choice(i_sub_2, diff_sub)
+                        x_mix, _ = mixup(data_augmented[sampled_idx_1], data_augmented[sampled_idx_2], alpha=args.alpha,
+                                         lam=lam)
+                        x_mix = add_noise(x_mix)
+                    elif len(i_sub_2) == 0:
+                        sampled_idx_1 = np.random.choice(i_sub_1, diff_sub)
+                        sampled_idx_2 = [-1] * diff_sub
+                        x_mix, _ = mixup(data_augmented[sampled_idx_1], data_augmented[sampled_idx_2], alpha=args.alpha,
+                                         lam=lam)
+                        x_mix = add_noise(x_mix)
+                    else:
+                        sampled_idx_1 = np.random.choice(i_sub_1, diff_sub)
+                        sampled_idx_2 = np.random.choice(i_sub_2, diff_sub)
+                        x_mix, _ = mixup(data_augmented[sampled_idx_1], data_augmented[sampled_idx_2], alpha=args.alpha,
+                                         lam=lam)
+                    data_augmented[last:(last + x_mix.shape[0])] = x_mix
+                    last += x_mix.shape[0]
+            labels_augmented = np.concatenate(
+                [labels_augmented, [lam * labels_augmented[idx_1[0]] + (1 - lam) * labels_augmented[idx_2[0]]] * diff])
             p_idx_augmented.append(np.arange(labels_augmented.shape[0] - diff, labels_augmented.shape[0]))
 
     return data_augmented[:last], p_idx_augmented, labels_augmented
