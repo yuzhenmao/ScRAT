@@ -177,6 +177,8 @@ class Transformer(nn.Module):
     def __init__(self, seq_len=100, input_dim=100, emb_dim=128, h_dim=128, N=6, heads=8, attention=Attention, d_ff=2048,
                  dropout=0.1, cl=6, pca=False):
         super().__init__()
+        if pca:
+            emb_dim = input_dim
         self.dimRedu = torch.nn.Sequential(nn.Linear(input_dim, emb_dim*2), nn.ReLU(), nn.Dropout(p=dropout), nn.Linear(emb_dim*2, emb_dim))
         # self.dimRedu = torch.nn.Sequential(nn.Linear(input_dim, emb_dim), nn.ReLU(), nn.Linear(emb_dim, emb_dim))
         self.encoder = Encoder(emb_dim, h_dim, N, heads, attention, d_ff, dropout)
