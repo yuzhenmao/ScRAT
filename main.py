@@ -354,11 +354,15 @@ def train(x_train, x_valid, x_test, y_train, y_valid, y_test, id_train, id_test,
 
 
 _, p_idx, labels_, cell_type, patient_id, data = Covid_data(args)
-rkf = RepeatedKFold(n_splits=args.n_splits, n_repeats=args.repeat, random_state=args.seed+3)
+rkf = RepeatedKFold(n_splits=abs(args.n_splits), n_repeats=args.repeat, random_state=args.seed+3)
 num = np.arange(len(p_idx))
 accuracy, aucs = [], []
 
 for train_index, test_index in rkf.split(num):
+    if args.n_splits < 0:
+        temp_idx = train_index
+        train_index = test_index
+        test_index = temp_idx
     x_train = []
     x_test = []
     x_valid = []
@@ -389,3 +393,4 @@ for train_index, test_index in rkf.split(num):
 
 print("Best performance: Test ACC %f,   Test AUC %f" % (np.average(accuracy), np.average(aucs)))
 print(patient_summary)
+
