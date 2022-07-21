@@ -18,6 +18,7 @@ import json
 from tqdm import tqdm
 import collections
 import pdb
+from datetime import datetime
 
 from model_baseline import *
 # from model_informer import Informer
@@ -115,7 +116,6 @@ np.random.seed(args.seed)
 
 patient_summary = {}
 
-
 # x_train, x_valid, x_test, y_train, y_valid, y_test = scRNA_data(cell_num=100)  # numpy array
 # x_train, x_valid, x_test, y_train, y_valid, y_test = Cloudpred_data(args)
 # x_train, x_valid, x_test, y_train, y_valid, y_test, id_train, id_test = Covid_data(args)
@@ -173,6 +173,8 @@ def train(x_train, x_valid, x_test, y_train, y_valid, y_test, id_train, id_test,
     test_accs, valid_accs, train_losses, valid_losses, train_accs, test_aucs = [], [], [], [], [], []
     best_valid_loss = float("inf")
     wrongs = []
+    trigger_times = 0
+    patience = 3
     for ep in (range(1, args.epochs + 1)):
         model.train()
         train_loss = []
@@ -269,6 +271,13 @@ def train(x_train, x_valid, x_test, y_train, y_valid, y_test, id_train, id_test,
 
             print("Epoch %d, Train Loss %f, Valid Loss %f" % (ep, train_loss, valid_loss))
 
+            if ep > 100 and valid_loss >= valid_losses[-2]:
+                trigger_times += 1
+                if trigger_times >= patience:
+                    break
+            else:
+                trigger_times = 0
+
     best_model.eval()
     pred = []
     true = []
@@ -299,6 +308,7 @@ def train(x_train, x_valid, x_test, y_train, y_valid, y_test, id_train, id_test,
             true.append(y_)
             if out[0] != y_[0][0]:
                 wrong.append(patient_id[batch[2][0][0][0]])
+    
     pred = np.concatenate(pred)
     true = np.concatenate(true)
     if len(wrongs) == 0:
@@ -326,51 +336,51 @@ def train(x_train, x_valid, x_test, y_train, y_valid, y_test, id_train, id_test,
     ####################
     # Visualization
     ####################
-    # start_epoch = 0
-    # end_epoch = args.epochs
-    # plot_num = 1
-    # label = [None] * plot_num
-    # label[0] = 'method=0, LR=0.001'
-    # fig = make_subplots(rows=1, cols=2)
-    # colors = plotly.colors.DEFAULT_PLOTLY_COLORS
-    # col_num = len(colors)
-    #
-    # epoch = np.arange(start_epoch, end_epoch)
-    #
-    # def plot_sub(sub_val, sub_row, sub_col, sub_x_title, sub_y_title, sub_showlegend, log_y=True):
-    #     linewidth = 1
-    #     dash_val_counter = 0
-    #     dash_val = None
-    #
-    #     for k in range(plot_num):
-    #         fig.add_trace(go.Scatter(x=epoch, y=sub_val[k][start_epoch:end_epoch],
-    #                                  name=label[k],
-    #                                  line=dict(color=colors[k % col_num], width=linewidth, dash=dash_val),
-    #                                  legendgroup=str(k), showlegend=sub_showlegend),
-    #                       row=sub_row, col=sub_col)
-    #         if dash_val_counter == 0:
-    #             dash_val = 'dashdot'
-    #         elif dash_val_counter == 1:
-    #             dash_val = 'dash'
-    #         else:
-    #             dash_val = None
-    #             dash_val_counter = -1
-    #         dash_val_counter += 1
-    #     fig.update_xaxes(title_text=sub_x_title, row=sub_row, col=sub_col)
-    #     if log_y == True:
-    #         fig.update_yaxes(title_text=sub_y_title, row=sub_row, col=sub_col, type="log")
-    #     else:
-    #         fig.update_yaxes(title_text=sub_y_title, row=sub_row, col=sub_col)
-    #
-    # plot_sub([train_losses], 1, 1, 'epoch', 'train loss', True, log_y=True)
-    # # plot_sub([train_accs], 1, 2, 'epoch', 'train acc', False, log_y=True)
-    # plot_sub([valid_losses], 1, 2, 'epoch', 'valid loss', False, log_y=True)
-    # # plot_sub([test_accs], 2, 2, 'epoch', 'test acc', False, log_y=True)
-    #
-    # if not os.path.exists(args.dir):
-    #     os.makedirs(args.dir)
-    #
-    # fig.write_html(args.dir + '/' + args.train_dataset[24:-4] + '_' + args.test_dataset[30:-4] + '.html')
+    start_epoch = 0
+    end_epoch = args.epochs
+    plot_num = 1
+    label = [None] * plot_num
+    label[0] = 'method=0, LR=0.001'
+    fig = make_subplots(rows=1, cols=2)
+    colors = plotly.colors.DEFAULT_PLOTLY_COLORS
+    col_num = len(colors)
+    
+    epoch = np.arange(start_epoch, end_epoch)
+    
+    def plot_sub(sub_val, sub_row, sub_col, sub_x_title, sub_y_title, sub_showlegend, log_y=True):
+        linewidth = 1
+        dash_val_counter = 0
+        dash_val = None
+    
+        for k in range(plot_num):
+            fig.add_trace(go.Scatter(x=epoch, y=sub_val[k][start_epoch:end_epoch],
+                                     name=label[k],
+                                     line=dict(color=colors[k % col_num], width=linewidth, dash=dash_val),
+                                     legendgroup=str(k), showlegend=sub_showlegend),
+                          row=sub_row, col=sub_col)
+            if dash_val_counter == 0:
+                dash_val = 'dashdot'
+            elif dash_val_counter == 1:
+                dash_val = 'dash'
+            else:
+                dash_val = None
+                dash_val_counter = -1
+            dash_val_counter += 1
+        fig.update_xaxes(title_text=sub_x_title, row=sub_row, col=sub_col)
+        if log_y == True:
+            fig.update_yaxes(title_text=sub_y_title, row=sub_row, col=sub_col, type="log")
+        else:
+            fig.update_yaxes(title_text=sub_y_title, row=sub_row, col=sub_col)
+    
+    plot_sub([train_losses], 1, 1, 'epoch', 'train loss', True, log_y=True)
+    # plot_sub([train_accs], 1, 2, 'epoch', 'train acc', False, log_y=True)
+    plot_sub([valid_losses], 1, 2, 'epoch', 'valid loss', False, log_y=True)
+    # plot_sub([test_accs], 2, 2, 'epoch', 'test acc', False, log_y=True)
+    
+    if not os.path.exists(args.dir):
+        os.makedirs(args.dir)
+    
+    fig.write_html(args.dir + '/' + str(iter_count) + '_' + datetime.now().strftime("%Y%m%d%H%M%S") + '.html')
 
     return test_auc, test_acc
 
@@ -379,6 +389,7 @@ _, p_idx, labels_, cell_type, patient_id, data = Covid_data(args)
 rkf = RepeatedKFold(n_splits=abs(args.n_splits), n_repeats=args.repeat, random_state=args.seed)
 num = np.arange(len(p_idx))
 accuracy, aucs = [], []
+iter_count = 0
 
 for train_index, test_index in rkf.split(num):
     if args.n_splits < 0:
@@ -413,12 +424,12 @@ for train_index, test_index in rkf.split(num):
         id_train += (id)
 
     temp_idx = np.random.permutation(len(test_index))
-    for t_idx in temp_idx[:-10]:
+    for t_idx in temp_idx[:-(len(train_index)//2)]:
         id, label = [id_l[0] for id_l in individual_test[t_idx]], [id_l[1] for id_l in individual_test[t_idx]]
         x_test.append([ii for ii in id])
         y_test.append(label[0])
         id_test.append(id)
-    for t_idx in temp_idx[-10:]:
+    for t_idx in temp_idx[-(len(train_index)//2):]:
         id, label = [id_l[0] for id_l in individual_test[t_idx]], [id_l[1] for id_l in individual_test[t_idx]]
         x_valid.append([ii for ii in id])
         y_valid.append(label[0])
@@ -429,6 +440,7 @@ for train_index, test_index in rkf.split(num):
     auc, acc = train(x_train, x_valid, x_test, y_train, y_valid, y_test, id_train, id_test, data_augmented, data)
     aucs.append(auc)
     accuracy.append(acc)
+    iter_count += 1
 
     del data_augmented
 
