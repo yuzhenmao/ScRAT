@@ -55,7 +55,7 @@ parser.add_argument("--test_dataset", type=str, default="covid_data_sex_4.pkl")
 
 parser.add_argument("--task", type=str, default="severity")
 
-parser.add_argument('--emb_dim', type=int, default=256)  # embedding dim
+parser.add_argument('--emb_dim', type=int, default=128)  # embedding dim
 parser.add_argument('--h_dim', type=int, default=128)  # hidden dim of the model
 parser.add_argument('--dropout', type=float, default=0.3)  # dropout
 
