@@ -13,6 +13,7 @@ import plotly
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 from sklearn.model_selection import RepeatedKFold
+import copy
 import json
 from tqdm import tqdm
 import collections
@@ -26,13 +27,17 @@ import matplotlib.pyplot as plt
 
 from dataloader import *
 
+
 def _str2bool(v):
     return v.lower() in ("yes", "y", "true", "t", "1")
+
+
 def int_or_float(x):
     try:
         return int(x)
     except ValueError:
         return float(x)
+
 
 parser = argparse.ArgumentParser(description='scRNA diagnosis')
 
@@ -57,32 +62,32 @@ parser.add_argument('--dropout', type=float, default=0.3)  # dropout
 parser.add_argument('--layers', type=int, default=1)
 parser.add_argument('--heads', type=int, default=8)
 parser.add_argument("-t", "--transform", default="log",
-                        choices=["none", "log"],
-                        help="preprocessing on data")
+                    choices=["none", "log"],
+                    help="preprocessing on data")
 parser.add_argument("--pc", type=_str2bool, default=True,
-                        help="project onto principal components")
+                    help="project onto principal components")
 parser.add_argument("--valid", type=int_or_float, default=0.25,
-                        help="root for optional figures")
+                    help="root for optional figures")
 parser.add_argument("--test", type=int_or_float, default=0.25,
-                        help="root for optional figures")
+                    help="root for optional figures")
 parser.add_argument("--train_patients", type=int, default=None,
-                        help="limit number of training patients")
+                    help="limit number of training patients")
 parser.add_argument("--cells", type=int, default=None,
-                        help="limit number of cells")
+                    help="limit number of cells")
 parser.add_argument("-f", "--figroot", type=str, default=None,
-                        help="root for optional figures")
+                    help="root for optional figures")
 parser.add_argument("--sample_cells", type=int, default=500,
-                        help="number of cells in one sample")
+                    help="number of cells in one sample")
 parser.add_argument("--train_sample_cells", type=int, default=500,
-                        help="number of cells in one sample in train dataset")
+                    help="number of cells in one sample in train dataset")
 parser.add_argument("--test_sample_cells", type=int, default=500,
-                        help="number of cells in one sample in test dataset")
+                    help="number of cells in one sample in test dataset")
 parser.add_argument("--num_sample", type=int, default=1000,
-                        help="number of sampled data points")
+                    help="number of sampled data points")
 parser.add_argument("--train_num_sample", type=int, default=20,
-                        help="number of sampled data points in train dataset")
+                    help="number of sampled data points in train dataset")
 parser.add_argument("--test_num_sample", type=int, default=100,
-                        help="number of sampled data points in test dataset")
+                    help="number of sampled data points in test dataset")
 
 parser.add_argument('--model', type=str, default='Transformer')
 parser.add_argument('--dataset', type=str, default=None)
@@ -100,7 +105,6 @@ parser.add_argument('--pca', type=_str2bool, default=True)
 parser.add_argument('--mix_type', type=int, default=0)
 parser.add_argument('--intra_only', type=_str2bool, default=False)
 
-
 args = parser.parse_args()
 
 # print("# of GPUs is", torch.cuda.device_count())
@@ -110,6 +114,7 @@ torch.manual_seed(args.seed)
 np.random.seed(args.seed)
 
 patient_summary = {}
+
 
 # x_train, x_valid, x_test, y_train, y_valid, y_test = scRNA_data(cell_num=100)  # numpy array
 # x_train, x_valid, x_test, y_train, y_valid, y_test = Cloudpred_data(args)
@@ -131,7 +136,8 @@ def train(x_train, x_valid, x_test, y_train, y_valid, y_test, id_train, id_test,
     dataset_1 = MyDataset(x_train, x_valid, x_test, y_train, y_valid, y_test, id_train, id_test, fold='train')
     dataset_2 = MyDataset(x_train, x_valid, x_test, y_train, y_valid, y_test, id_train, id_test, fold='test')
     dataset_3 = MyDataset(x_train, x_valid, x_test, y_train, y_valid, y_test, id_train, id_test, fold='val')
-    train_loader = torch.utils.data.DataLoader(dataset_1, batch_size=args.batch_size, shuffle=True, collate_fn=dataset_1.collate)
+    train_loader = torch.utils.data.DataLoader(dataset_1, batch_size=args.batch_size, shuffle=True,
+                                               collate_fn=dataset_1.collate)
     test_loader = torch.utils.data.DataLoader(dataset_2, batch_size=1, shuffle=False, collate_fn=dataset_2.collate)
     valid_loader = torch.utils.data.DataLoader(dataset_3, batch_size=1, shuffle=False, collate_fn=dataset_3.collate)
 
@@ -141,15 +147,16 @@ def train(x_train, x_valid, x_test, y_train, y_valid, y_test, id_train, id_test,
     output_class = 1
 
     if args.model == 'Transformer':
-        model = Transformer(seq_len=args.sample_cells, input_dim= input_dim, emb_dim=args.emb_dim, h_dim=args.h_dim, N=args.layers, heads=args.heads, dropout=args.dropout, cl=output_class, pca=args.pca)
+        model = Transformer(seq_len=args.sample_cells, input_dim=input_dim, emb_dim=args.emb_dim, h_dim=args.h_dim,
+                            N=args.layers, heads=args.heads, dropout=args.dropout, cl=output_class, pca=args.pca)
     elif args.model == 'feedforward':
         model = FeedForward(input_dim=input_dim, h_dim=args.h_dim, cl=output_class, dropout=args.dropout)
     elif args.model == 'linear':
         model = Linear_Classfier(input_dim=input_dim, cl=output_class)
 
-
     model = nn.DataParallel(model)
     model.to(device)
+    best_model = model
 
     print(device)
 
@@ -163,14 +170,15 @@ def train(x_train, x_valid, x_test, y_train, y_valid, y_test, id_train, id_test,
     sigmoid = torch.nn.Sigmoid().to(device)
 
     max_acc, max_epoch, max_auc, max_loss, max_valid_acc, max_valid_auc = 0, 0, 0, 0, 0, 0
-    test_accs, valid_accs, train_losses, train_accs, test_aucs = [], [], [], [], []
+    test_accs, valid_accs, train_losses, valid_losses, train_accs, test_aucs = [], [], [], [], [], []
+    best_valid_loss = float("inf")
     wrongs = []
-    for ep in tqdm(range(1, args.epochs+1)):
+    for ep in (range(1, args.epochs + 1)):
         model.train()
         train_loss = []
 
-        #pred = []
-        #true = []
+        # pred = []
+        # true = []
 
         for batch in (train_loader):
             x_ = torch.from_numpy(data_augmented[batch[0]]).float().to(device)
@@ -186,12 +194,12 @@ def train(x_train, x_valid, x_test, y_train, y_valid, y_test, id_train, id_test,
             optimizer.step()
             train_loss.append(loss.item())
 
-            #out = sigmoid(out)
-            #out = out.detach().cpu().numpy()
+            # out = sigmoid(out)
+            # out = out.detach().cpu().numpy()
 
-            #pred.append(out)
-            #y_ = y_.detach().cpu().numpy()
-            #true.append(y_)
+            # pred.append(out)
+            # y_ = y_.detach().cpu().numpy()
+            # true.append(y_)
 
         # scheduler.step()
 
@@ -199,17 +207,16 @@ def train(x_train, x_valid, x_test, y_train, y_valid, y_test, id_train, id_test,
         train_losses.append(train_loss)
         train_acc = 0
 
-
-        #pred = np.concatenate(pred)
-        #true = np.concatenate(true)
-        #fpr, tpr, thresholds = metrics.roc_curve(true, pred, pos_label=1)
-        #AUC = metrics.auc(fpr, tpr)
+        # pred = np.concatenate(pred)
+        # true = np.concatenate(true)
+        # fpr, tpr, thresholds = metrics.roc_curve(true, pred, pos_label=1)
+        # AUC = metrics.auc(fpr, tpr)
 
         if ep % 1 == 0:
+            valid_loss = []
             model.eval()
             pred = []
             true = []
-            wrong = []
             with torch.no_grad():
                 for batch in (valid_loader):
                     x_ = torch.from_numpy(data[batch[0]]).float().to(device).squeeze(0)
@@ -217,7 +224,17 @@ def train(x_train, x_valid, x_test, y_train, y_valid, y_test, id_train, id_test,
 
                     out = model(x_)
                     out = sigmoid(out)
-                    out = out.detach().cpu().numpy()
+                    # out = out.detach().cpu().numpy()
+
+                    # loss = nn.BCELoss(reduce=False)(sigmoid(out), y_ * torch.ones(out.shape).to(device))
+                    # loss = loss.cpu().numpy().reshape(-1)
+                    # idx = np.argsort(loss)
+                    # loss = loss[idx[:idx.shape[0] // 2 + 1]].mean()
+                    # valid_loss.append(loss)
+                    loss = nn.BCELoss()(out, y_ * torch.ones(out.shape).to(device))
+                    valid_loss.append(loss.item())
+
+                    # out = out.detach().cpu().numpy()
 
                     # attens = model.module.attens
                     # topK = np.bincount(attens.max(-1)[1].cpu().detach().numpy().reshape(-1)).argsort()[-20:][::-1]
@@ -228,120 +245,93 @@ def train(x_train, x_valid, x_test, y_train, y_valid, y_test, id_train, id_test,
                     #         stats[types] += 1
 
                     # majority voting
-                    f = lambda x: 1 if x > 0.5 else 0
-                    func = np.vectorize(f)
-                    out = np.argmax(np.bincount(func(out).reshape(-1))).reshape(-1)
-                    pred.append(out)
-                    y_ = y_.detach().cpu().numpy()
-                    true.append(y_)
-            pred = np.concatenate(pred)
-            true = np.concatenate(true)
-
-            fpr, tpr, thresholds = metrics.roc_curve(true, pred, pos_label=1)
-            valid_auc = metrics.auc(fpr, tpr)
-            valid_acc = accuracy_score(true.reshape(-1), pred)
-
-            # if valid_auc >= max_valid_auc:
-            if valid_acc >= max_valid_acc:  
-                max_valid_acc = valid_acc     
-                model.eval()
-                pred = []
-                true = []
-                wrong = []
-                with torch.no_grad():
-                    for batch in (test_loader):
-                        x_ = torch.from_numpy(data[batch[0]]).float().to(device).squeeze(0)
-                        y_ = batch[1].to(device)
-
-                        out = model(x_)
-                        out = sigmoid(out)
-                        out = out.detach().cpu().numpy()
-
-                        # attens = model.module.attens
-                        # topK = np.bincount(attens.max(-1)[1].cpu().detach().numpy().reshape(-1)).argsort()[-20:][::-1]
-                        # for types in id_[topK]:
-                        #     if stats.get(types, 0) == 0:
-                        #         stats[types] = 1
-                        #     else:
-                        #         stats[types] += 1
-
-                        # majority voting
-                        f = lambda x: 1 if x > 0.5 else 0
-                        func = np.vectorize(f)
-                        out = np.argmax(np.bincount(func(out).reshape(-1))).reshape(-1)
-                        pred.append(out)
-                        y_ = y_.detach().cpu().numpy()
-                        true.append(y_)
-                        if out[0] != y_[0][0]:
-                            wrong.append(patient_id[batch[2][0][0][0]])
-                pred = np.concatenate(pred)
-                true = np.concatenate(true)
-                if len(wrongs) == 0:
-                    wrongs = set(wrong)
-                else:
-                    wrongs = wrongs.intersection(set(wrong))
-
-                fpr, tpr, thresholds = metrics.roc_curve(true, pred, pos_label=1)
-                test_auc = metrics.auc(fpr, tpr)
-                test_aucs.append(test_auc)
-
-                test_acc = accuracy_score(true.reshape(-1), pred)
-                test_accs.append(test_acc)
-
-                max_epoch = ep
-                max_auc = test_auc
-                max_loss = train_loss
-                max_acc = test_acc
-
-
-            # pred = []
-            # true = []
-            # with torch.no_grad():
-            #     for batch in tqdm(train_loader):
-            #         x_ = batch[0].to(device)
-            #         y_ = batch[1].to(device)
-            #
-            #         out = model(x_)
-            #         out = sigmoid(out)
-            #         out = out.detach().cpu().numpy()
-            #
-            #         # attens = model.module.attens
-            #         # topK = np.bincount(attens.max(-1)[1].cpu().detach().numpy().reshape(-1)).argsort()[-20:][::-1]
-            #         # for types in id_[topK]:
-            #         #     if stats.get(types, 0) == 0:
-            #         #         stats[types] = 1
-            #         #     else:
-            #         #         stats[types] += 1
-            #
+            #         f = lambda x: 1 if x > 0.5 else 0
+            #         func = np.vectorize(f)
+            #         out = np.argmax(np.bincount(func(out).reshape(-1))).reshape(-1)
             #         pred.append(out)
             #         y_ = y_.detach().cpu().numpy()
             #         true.append(y_)
             # pred = np.concatenate(pred)
             # true = np.concatenate(true)
-            # pred = pred.argmax(1)
-            # train_acc = accuracy_score(true.reshape(-1), pred)
-            # train_accs.append(train_acc)
 
-            #print("Epoch %d, Train Loss %f, Train AUC %f Test AUC %f,"%(ep, train_loss, AUC, test_AUC))
-            # print("Epoch %d, Train Loss %f, Train ACC %f, Valid ACC %f, Test ACC %f,"%(ep, train_loss, train_acc, valid_acc, test_acc))
-            # print("Epoch %d, Train Loss %f, Test ACC %f,"%(ep, train_loss, test_acc))
+            # fpr, tpr, thresholds = metrics.roc_curve(true, pred, pos_label=1)
+            # valid_auc = metrics.auc(fpr, tpr)
+            # valid_acc = accuracy_score(true.reshape(-1), pred)
+            valid_loss = sum(valid_loss) / len(valid_loss)
+            valid_losses.append(valid_loss)
 
-        # print(stats)
-    print("Best performance: Epoch %d, Loss %f, Test ACC %f, Test AUC %f" % (max_epoch, max_loss, max_acc, max_auc))
+            # if valid_auc >= max_valid_auc:
+            if valid_loss <= best_valid_loss:
+                best_model = copy.deepcopy(model)
+                best_valid_loss = valid_loss
+                max_epoch = ep
+                max_loss = train_loss
+
+            print("Epoch %d, Train Loss %f, Valid Loss %f" % (ep, train_loss, valid_loss))
+
+    best_model.eval()
+    pred = []
+    true = []
+    wrong = []
+    with torch.no_grad():
+        for batch in (test_loader):
+            x_ = torch.from_numpy(data[batch[0]]).float().to(device).squeeze(0)
+            y_ = batch[1].to(device)
+
+            out = best_model(x_)
+            out = sigmoid(out)
+            out = out.detach().cpu().numpy()
+
+            # attens = model.module.attens
+            # topK = np.bincount(attens.max(-1)[1].cpu().detach().numpy().reshape(-1)).argsort()[-20:][::-1]
+            # for types in id_[topK]:
+            #     if stats.get(types, 0) == 0:
+            #         stats[types] = 1
+            #     else:
+            #         stats[types] += 1
+
+            # majority voting
+            f = lambda x: 1 if x > 0.5 else 0
+            func = np.vectorize(f)
+            out = np.argmax(np.bincount(func(out).reshape(-1))).reshape(-1)
+            pred.append(out)
+            y_ = y_.detach().cpu().numpy()
+            true.append(y_)
+            if out[0] != y_[0][0]:
+                wrong.append(patient_id[batch[2][0][0][0]])
+    pred = np.concatenate(pred)
+    true = np.concatenate(true)
+    if len(wrongs) == 0:
+        wrongs = set(wrong)
+    else:
+        wrongs = wrongs.intersection(set(wrong))
+
+    fpr, tpr, thresholds = metrics.roc_curve(true, pred, pos_label=1)
+    test_auc = metrics.auc(fpr, tpr)
+    test_aucs.append(test_auc)
+
+    test_acc = accuracy_score(true.reshape(-1), pred)
+    test_accs.append(test_acc)
+
+
+    # print("Epoch %d, Train Loss %f, Train ACC %f, Valid ACC %f, Test ACC %f,"%(ep, train_loss, train_acc, valid_acc, test_acc))
+    # print("Epoch %d, Train Loss %f, Test ACC %f,"%(ep, train_loss, test_acc))
+
+    # print(stats)
+    print("Best performance: Epoch %d, Loss %f, Test ACC %f, Test AUC %f" % (max_epoch, max_loss, test_acc, test_auc))
     for w in wrongs:
         v = patient_summary.get(w, 0)
         patient_summary[w] = v + 1
 
-
-    #####################
+    ####################
     # Visualization
-    #####################
+    ####################
     # start_epoch = 0
     # end_epoch = args.epochs
     # plot_num = 1
     # label = [None] * plot_num
     # label[0] = 'method=0, LR=0.001'
-    # fig = make_subplots(rows=2, cols=2)
+    # fig = make_subplots(rows=1, cols=2)
     # colors = plotly.colors.DEFAULT_PLOTLY_COLORS
     # col_num = len(colors)
     #
@@ -354,7 +344,8 @@ def train(x_train, x_valid, x_test, y_train, y_valid, y_test, id_train, id_test,
     #
     #     for k in range(plot_num):
     #         fig.add_trace(go.Scatter(x=epoch, y=sub_val[k][start_epoch:end_epoch],
-    #                                  name=label[k], line=dict(color=colors[k % col_num], width=linewidth, dash=dash_val),
+    #                                  name=label[k],
+    #                                  line=dict(color=colors[k % col_num], width=linewidth, dash=dash_val),
     #                                  legendgroup=str(k), showlegend=sub_showlegend),
     #                       row=sub_row, col=sub_col)
     #         if dash_val_counter == 0:
@@ -371,18 +362,17 @@ def train(x_train, x_valid, x_test, y_train, y_valid, y_test, id_train, id_test,
     #     else:
     #         fig.update_yaxes(title_text=sub_y_title, row=sub_row, col=sub_col)
     #
-    #
     # plot_sub([train_losses], 1, 1, 'epoch', 'train loss', True, log_y=True)
-    # plot_sub([train_accs], 1, 2, 'epoch', 'train acc', False, log_y=True)
-    # plot_sub([valid_accs], 2, 1, 'epoch', 'valid acc', False, log_y=True)
-    # plot_sub([test_accs], 2, 2, 'epoch', 'test acc', False, log_y=True)
+    # # plot_sub([train_accs], 1, 2, 'epoch', 'train acc', False, log_y=True)
+    # plot_sub([valid_losses], 1, 2, 'epoch', 'valid loss', False, log_y=True)
+    # # plot_sub([test_accs], 2, 2, 'epoch', 'test acc', False, log_y=True)
     #
     # if not os.path.exists(args.dir):
     #     os.makedirs(args.dir)
     #
     # fig.write_html(args.dir + '/' + args.train_dataset[24:-4] + '_' + args.test_dataset[30:-4] + '.html')
 
-    return max_auc, max_acc
+    return test_auc, test_acc
 
 
 _, p_idx, labels_, cell_type, patient_id, data = Covid_data(args)
@@ -412,14 +402,16 @@ for train_index, test_index in rkf.split(num):
     id_test = []
     id_valid = []
     # only use the augmented data (intra-mixup, inter-mixup) as train data
-    data_augmented, train_p_idx, labels_augmented = mixups(args, data, [p_idx[idx] for idx in train_index], labels_, cell_type)
-    individual_train, individual_test = sampling(args, train_p_idx, [p_idx[idx] for idx in test_index], labels_, labels_augmented)
+    data_augmented, train_p_idx, labels_augmented = mixups(args, data, [p_idx[idx] for idx in train_index], labels_,
+                                                           cell_type)
+    individual_train, individual_test = sampling(args, train_p_idx, [p_idx[idx] for idx in test_index], labels_,
+                                                 labels_augmented)
     for t in individual_train:
         id, label = [id_l[0] for id_l in t], [id_l[1] for id_l in t]
         x_train += [ii for ii in id]
         y_train += (label)
         id_train += (id)
-    
+
     temp_idx = np.random.permutation(len(test_index))
     for t_idx in temp_idx[:-10]:
         id, label = [id_l[0] for id_l in individual_test[t_idx]], [id_l[1] for id_l in individual_test[t_idx]]
@@ -432,11 +424,13 @@ for train_index, test_index in rkf.split(num):
         y_valid.append(label[0])
         id_valid.append(id)
     x_train, x_valid, x_test, y_train, y_valid, y_test = x_train, x_valid, x_test, np.array(y_train).reshape([-1, 1]), \
-                                                        np.array(y_valid).reshape([-1, 1]), np.array(y_test).reshape([-1, 1])
+                                                         np.array(y_valid).reshape([-1, 1]), np.array(y_test).reshape(
+        [-1, 1])
     auc, acc = train(x_train, x_valid, x_test, y_train, y_valid, y_test, id_train, id_test, data_augmented, data)
     aucs.append(auc)
     accuracy.append(acc)
 
+    del data_augmented
 
 print("Best performance: Test ACC %f,   Test AUC %f" % (np.average(accuracy), np.average(aucs)))
 print(patient_summary)
