@@ -227,7 +227,7 @@ def sampling(args, train_p_idx, test_p_idx, labels_, labels_augmented):
         for idx in train_p_idx:
             y = labels_augmented[idx[0]]
             if idx.shape[0] < args.train_sample_cells:
-                sample_cells = idx.shape[0] // 2
+                sample_cells = idx.shape[0]
             else:
                 sample_cells = args.train_sample_cells
             temp = []
@@ -238,7 +238,7 @@ def sampling(args, train_p_idx, test_p_idx, labels_, labels_augmented):
         for idx in test_p_idx:
             y = labels_[idx[0]]
             if idx.shape[0] < args.test_sample_cells:
-                sample_cells = idx.shape[0] // 2
+                sample_cells = idx.shape[0]
             else:
                 sample_cells = args.test_sample_cells
             temp = []
