@@ -45,9 +45,9 @@ parser = argparse.ArgumentParser(description='scRNA diagnosis')
 parser.add_argument('--seed', type=int, default=240)
 
 parser.add_argument('--batch_size', type=int, default=16)
-parser.add_argument('--learning_rate', type=float, default=1e-3)
+parser.add_argument('--learning_rate', type=float, default=3e-3)
 parser.add_argument('--weight_decay', type=float, default=1e-4)
-parser.add_argument('--epochs', type=int, default=100)
+parser.add_argument('--epochs', type=int, default=120)
 
 parser.add_argument("--dir", type=str, default="covid_data", help="root directory of data")
 
@@ -166,7 +166,7 @@ def train(x_train, x_valid, x_test, y_train, y_valid, y_test, id_train, id_test,
     # training and evaluation
     ################################################################
     optimizer = Adam(model.parameters(), lr=args.learning_rate, weight_decay=args.weight_decay)
-    scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=100, gamma=0.1, last_epoch=-1)
+    scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=50, gamma=0.5, last_epoch=-1)
     sigmoid = torch.nn.Sigmoid().to(device)
 
     max_acc, max_epoch, max_auc, max_loss, max_valid_acc, max_valid_auc = 0, 0, 0, 0, 0, 0
@@ -182,7 +182,7 @@ def train(x_train, x_valid, x_test, y_train, y_valid, y_test, id_train, id_test,
         # pred = []
         # true = []
 
-        for batch in (train_loader):
+        for batch in tqdm(train_loader):
             x_ = torch.from_numpy(data_augmented[batch[0]]).float().to(device)
             y_ = batch[1].to(device)
 
@@ -203,7 +203,7 @@ def train(x_train, x_valid, x_test, y_train, y_valid, y_test, id_train, id_test,
             # y_ = y_.detach().cpu().numpy()
             # true.append(y_)
 
-        # scheduler.step()
+        scheduler.step()
 
         train_loss = sum(train_loss) / len(train_loss)
         train_losses.append(train_loss)
@@ -271,7 +271,7 @@ def train(x_train, x_valid, x_test, y_train, y_valid, y_test, id_train, id_test,
 
             print("Epoch %d, Train Loss %f, Valid Loss %f" % (ep, train_loss, valid_loss))
 
-            if ep > 100 and valid_loss >= valid_losses[-2]:
+            if ep > 50 and valid_loss >= valid_losses[-2]:
                 trigger_times += 1
                 if trigger_times >= patience:
                     break
