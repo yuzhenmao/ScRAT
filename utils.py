@@ -63,7 +63,7 @@ class MyDataset(Dataset):
 
 def add_noise(cells):
     mean = 0
-    var = 1e-4
+    var = 1e-5
     sigma = var ** 0.5
     gauss = np.random.normal(mean, sigma, cells.shape)
     noisy = cells + gauss
