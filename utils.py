@@ -83,7 +83,6 @@ def mixup(x, x_p, alpha=1.0, size=1, lam=None):
 
 
 def mixups(args, data, p_idx, labels_, cell_type):
-    np.random.seed(args.seed * 2)
     max_num_cells = data.shape[0]
     ###################
     # check the dataset
@@ -94,7 +93,7 @@ def mixups(args, data, p_idx, labels_, cell_type):
     for idx, i in enumerate(p_idx):
         max_num_cells += (max(args.min_size - len(i), 0) + 100)
     data_augmented = np.zeros([max_num_cells + (args.min_size + 100) * args.augment_num, data.shape[1]])
-    if args.intra_only:
+    if args.intra_only and (args.augment_num > 0):
         last = 0
         labels_augmented = []
         cell_type_augmented = []
