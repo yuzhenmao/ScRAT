@@ -93,7 +93,7 @@ def mixups(args, data, p_idx, labels_, cell_type):
     for idx, i in enumerate(p_idx):
         max_num_cells += (max(args.min_size - len(i), 0) + 100)
     data_augmented = np.zeros([max_num_cells + (args.min_size + 100) * args.augment_num, data.shape[1]])
-    if args.intra_only and (args.augment_num > 0):
+    if args.intra_only and args.intra_mixup:
         last = 0
         labels_augmented = []
         cell_type_augmented = []
@@ -103,7 +103,7 @@ def mixups(args, data, p_idx, labels_, cell_type):
         labels_augmented = copy.deepcopy(labels_)
         cell_type_augmented = copy.deepcopy(cell_type)
     # intra-mixup
-    if args.intra_mixup is True:
+    if args.intra_mixup:
         print("======= intra patient mixup ... ============")
         if args.intra_only:
             for idx, i in (enumerate(p_idx)):
