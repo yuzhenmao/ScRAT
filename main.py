@@ -424,12 +424,13 @@ for train_index, test_index in rkf.split(num):
         id_train += (id)
 
     temp_idx = np.random.permutation(len(test_index))
-    for t_idx in temp_idx[:-(len(train_index)//2)]:
+    valid_size = min(len(train_index) // 2, len(test_index) // 2)
+    for t_idx in temp_idx[:-valid_size]:
         id, label = [id_l[0] for id_l in individual_test[t_idx]], [id_l[1] for id_l in individual_test[t_idx]]
         x_test.append([ii for ii in id])
         y_test.append(label[0])
         id_test.append(id)
-    for t_idx in temp_idx[-(len(train_index)//2):]:
+    for t_idx in temp_idx[-valid_size:]:
         id, label = [id_l[0] for id_l in individual_test[t_idx]], [id_l[1] for id_l in individual_test[t_idx]]
         x_valid.append([ii for ii in id])
         y_valid.append(label[0])
