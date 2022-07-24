@@ -21,6 +21,7 @@ import pdb
 from datetime import datetime
 
 from model_baseline import *
+from Transformer import TransformerPredictor
 # from model_informer import Informer
 # from model_longformer import Longformer
 # from model_reformer import Reformer
@@ -116,6 +117,7 @@ np.random.seed(args.seed)
 
 patient_summary = {}
 
+
 # x_train, x_valid, x_test, y_train, y_valid, y_test = scRNA_data(cell_num=100)  # numpy array
 # x_train, x_valid, x_test, y_train, y_valid, y_test = Cloudpred_data(args)
 # x_train, x_valid, x_test, y_train, y_valid, y_test, id_train, id_test = Covid_data(args)
@@ -147,8 +149,11 @@ def train(x_train, x_valid, x_test, y_train, y_valid, y_test, id_train, id_test,
     output_class = 1
 
     if args.model == 'Transformer':
-        model = Transformer(seq_len=args.sample_cells, input_dim=input_dim, emb_dim=args.emb_dim, h_dim=args.h_dim,
-                            N=args.layers, heads=args.heads, dropout=args.dropout, cl=output_class, pca=args.pca)
+        # model = Transformer(seq_len=args.sample_cells, input_dim=input_dim, emb_dim=args.emb_dim, h_dim=args.h_dim,
+        #                     N=args.layers, heads=args.heads, dropout=args.dropout, cl=output_class, pca=args.pca)
+        model = TransformerPredictor(input_dim=input_dim, model_dim=args.emb_dim, num_classes=output_class,
+                                     num_heads=args.heads, num_layers=args.layers, dropout=args.dropout,
+                                     input_dropout=0, pca=args.pca)
     elif args.model == 'feedforward':
         model = FeedForward(input_dim=input_dim, h_dim=args.h_dim, cl=output_class, dropout=args.dropout)
     elif args.model == 'linear':
@@ -308,7 +313,7 @@ def train(x_train, x_valid, x_test, y_train, y_valid, y_test, id_train, id_test,
             true.append(y_)
             if out[0] != y_[0][0]:
                 wrong.append(patient_id[batch[2][0][0][0]])
-    
+
     pred = np.concatenate(pred)
     true = np.concatenate(true)
     if len(wrongs) == 0:
@@ -322,7 +327,6 @@ def train(x_train, x_valid, x_test, y_train, y_valid, y_test, id_train, id_test,
 
     test_acc = accuracy_score(true.reshape(-1), pred)
     test_accs.append(test_acc)
-
 
     # print("Epoch %d, Train Loss %f, Train ACC %f, Valid ACC %f, Test ACC %f,"%(ep, train_loss, train_acc, valid_acc, test_acc))
     # print("Epoch %d, Train Loss %f, Test ACC %f,"%(ep, train_loss, test_acc))
@@ -344,14 +348,14 @@ def train(x_train, x_valid, x_test, y_train, y_valid, y_test, id_train, id_test,
     fig = make_subplots(rows=1, cols=2)
     colors = plotly.colors.DEFAULT_PLOTLY_COLORS
     col_num = len(colors)
-    
+
     epoch = np.arange(start_epoch, end_epoch)
-    
+
     def plot_sub(sub_val, sub_row, sub_col, sub_x_title, sub_y_title, sub_showlegend, log_y=True):
         linewidth = 1
         dash_val_counter = 0
         dash_val = None
-    
+
         for k in range(plot_num):
             fig.add_trace(go.Scatter(x=epoch, y=sub_val[k][start_epoch:end_epoch],
                                      name=label[k],
@@ -371,15 +375,15 @@ def train(x_train, x_valid, x_test, y_train, y_valid, y_test, id_train, id_test,
             fig.update_yaxes(title_text=sub_y_title, row=sub_row, col=sub_col, type="log")
         else:
             fig.update_yaxes(title_text=sub_y_title, row=sub_row, col=sub_col)
-    
+
     plot_sub([train_losses], 1, 1, 'epoch', 'train loss', True, log_y=True)
     # plot_sub([train_accs], 1, 2, 'epoch', 'train acc', False, log_y=True)
     plot_sub([valid_losses], 1, 2, 'epoch', 'valid loss', False, log_y=True)
     # plot_sub([test_accs], 2, 2, 'epoch', 'test acc', False, log_y=True)
-    
+
     if not os.path.exists(args.dir):
         os.makedirs(args.dir)
-    
+
     fig.write_html(args.dir + '/' + str(iter_count) + '_' + datetime.now().strftime("%Y%m%d%H%M%S") + '.html')
 
     return test_auc, test_acc
