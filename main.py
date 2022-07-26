@@ -106,6 +106,7 @@ parser.add_argument('--n_splits', type=int, default=5)
 parser.add_argument('--pca', type=_str2bool, default=True)
 parser.add_argument('--mix_type', type=int, default=0)
 parser.add_argument('--intra_only', type=_str2bool, default=False)
+parser.add_argument('--norm_first', type=_str2bool, default=False)
 
 args = parser.parse_args()
 
@@ -153,7 +154,7 @@ def train(x_train, x_valid, x_test, y_train, y_valid, y_test, id_train, id_test,
         #                     N=args.layers, heads=args.heads, dropout=args.dropout, cl=output_class, pca=args.pca)
         model = TransformerPredictor(input_dim=input_dim, model_dim=args.emb_dim, num_classes=output_class,
                                      num_heads=args.heads, num_layers=args.layers, dropout=args.dropout,
-                                     input_dropout=0, pca=args.pca)
+                                     input_dropout=0, pca=args.pca, norm_first=args.norm_first)
     elif args.model == 'feedforward':
         model = FeedForward(input_dim=input_dim, h_dim=args.h_dim, cl=output_class, dropout=args.dropout)
     elif args.model == 'linear':

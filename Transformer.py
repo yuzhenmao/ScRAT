@@ -63,7 +63,7 @@ class MultiheadAttention(nn.Module):
 
 class EncoderBlock(nn.Module):
 
-    def __init__(self, input_dim, num_heads, dim_feedforward, dropout=0.0):
+    def __init__(self, input_dim, num_heads, dim_feedforward, dropout=0.0, norm_first=True):
         """
         Inputs:
             input_dim - Dimensionality of the input
@@ -75,30 +75,33 @@ class EncoderBlock(nn.Module):
 
         # Attention layer
         self.self_attn = MultiheadAttention(input_dim, input_dim, num_heads)
+        self.norm_first = norm_first
 
         # Two-layer MLP
         self.linear_net = nn.Sequential(
             nn.Linear(input_dim, dim_feedforward),
-            nn.Dropout(dropout),
             nn.ReLU(inplace=True),
+            nn.Dropout(dropout),
             nn.Linear(dim_feedforward, input_dim)
         )
 
         # Layers to apply in between the main layers
         self.norm1 = nn.LayerNorm(input_dim)
         self.norm2 = nn.LayerNorm(input_dim)
-        self.dropout = nn.Dropout(dropout)
+        self.dropout1 = nn.Dropout(dropout)
+        self.dropout2 = nn.Dropout(dropout)
 
     def forward(self, x, mask=None):
-        # Attention part
-        attn_out = self.self_attn(x, mask=mask)
-        x = x + self.dropout(attn_out)
-        x = self.norm1(x)
-
-        # MLP part
-        linear_out = self.linear_net(x)
-        x = x + self.dropout(linear_out)
-        x = self.norm2(x)
+        if self.norm_first:
+            # Attention part
+            x = x + self.dropout1(self.self_attn(self.norm1(x), mask=mask))
+            # MLP part
+            x = x + self.dropout2(self.linear_net(self.norm2(x)))
+        else:
+            # Attention part
+            x = self.norm1(x + self.dropout1(self.self_attn(x, mask=mask)))
+            # MLP part
+            x = self.norm2(x + self.dropout2(self.linear_net(x)))
 
         return x
 
@@ -154,7 +157,7 @@ class PositionalEncoding(nn.Module):
 class TransformerPredictor(pl.LightningModule):
 
     def __init__(self, input_dim, model_dim, num_classes, num_heads, num_layers, dropout=0.0,
-                 input_dropout=0.0, pca=False):
+                 input_dropout=0.0, pca=False, norm_first=True):
         """
         Inputs:
             input_dim - Hidden dimensionality of the input
@@ -192,7 +195,8 @@ class TransformerPredictor(pl.LightningModule):
                                               input_dim=self.hparams.model_dim,
                                               dim_feedforward=2*self.hparams.model_dim,
                                               num_heads=self.hparams.num_heads,
-                                              dropout=self.hparams.dropout)
+                                              dropout=self.hparams.dropout,
+                                              norm_first=self.hparams.norm_first)
         # Output classifier per sequence lement
         self.output_net = nn.Sequential(
             nn.Linear(self.hparams.model_dim, self.hparams.model_dim),
