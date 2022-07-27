@@ -56,9 +56,10 @@ class MyDataset(Dataset):
 
     def collate(self, batches):
         xs = torch.stack([batch[0] for batch in batches if len(batch) > 0])
+        mask = torch.stack([batch[0] == -1 for batch in batches if len(batch) > 0])
         ys = torch.stack([batch[1] for batch in batches if len(batch) > 0])
         ids = [batch[2] for batch in batches if len(batch) > 0]
-        return xs, torch.FloatTensor(ys), ids
+        return xs, torch.FloatTensor(ys), ids, mask
 
 
 def add_noise(cells):
@@ -225,14 +226,16 @@ def sampling(args, train_p_idx, test_p_idx, labels_, labels_augmented):
         individual_test = []
         for idx in train_p_idx:
             y = labels_augmented[idx[0]]
-            if idx.shape[0] < args.train_sample_cells:
-                sample_cells = idx.shape[0]
-            else:
-                sample_cells = args.train_sample_cells
             temp = []
-            for _ in range(args.train_num_sample):
-                sample = np.random.choice(idx, sample_cells, replace=False)
-                temp.append((sample, y))
+            if idx.shape[0] < args.train_sample_cells:
+                for _ in range(args.train_num_sample):
+                    sample = np.zeros(args.train_sample_cells, dtype=int) - 1
+                    sample[:idx.shape[0]] = idx
+                    temp.append((sample, y))
+            else:
+                for _ in range(args.train_num_sample):
+                    sample = np.random.choice(idx, args.train_sample_cells, replace=False)
+                    temp.append((sample, y))
             individual_train.append(temp)
         for idx in test_p_idx:
             y = labels_[idx[0]]
