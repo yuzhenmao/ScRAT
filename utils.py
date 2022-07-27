@@ -220,7 +220,6 @@ def mixups(args, data, p_idx, labels_, cell_type):
 
 
 def sampling(args, train_p_idx, test_p_idx, labels_, labels_augmented):
-    np.random.seed(args.seed * 3)
     if args.all == 0:
         individual_train = []
         individual_test = []

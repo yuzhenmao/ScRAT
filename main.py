@@ -277,7 +277,7 @@ def train(x_train, x_valid, x_test, y_train, y_valid, y_test, id_train, id_test,
 
             print("Epoch %d, Train Loss %f, Valid Loss %f" % (ep, train_loss, valid_loss))
 
-            if ep > 50 and valid_loss >= valid_losses[-2]:
+            if (ep > args.epochs - 50) and valid_loss >= valid_losses[-2]:
                 trigger_times += 1
                 if trigger_times >= patience:
                     break
@@ -377,15 +377,15 @@ def train(x_train, x_valid, x_test, y_train, y_valid, y_test, id_train, id_test,
         else:
             fig.update_yaxes(title_text=sub_y_title, row=sub_row, col=sub_col)
 
-    plot_sub([train_losses], 1, 1, 'epoch', 'train loss', True, log_y=True)
+    # plot_sub([train_losses], 1, 1, 'epoch', 'train loss', True, log_y=True)
     # plot_sub([train_accs], 1, 2, 'epoch', 'train acc', False, log_y=True)
-    plot_sub([valid_losses], 1, 2, 'epoch', 'valid loss', False, log_y=True)
+    # plot_sub([valid_losses], 1, 2, 'epoch', 'valid loss', False, log_y=True)
     # plot_sub([test_accs], 2, 2, 'epoch', 'test acc', False, log_y=True)
 
-    if not os.path.exists(args.dir):
-        os.makedirs(args.dir)
+    # if not os.path.exists(args.dir):
+    #     os.makedirs(args.dir)
 
-    fig.write_html(args.dir + '/' + str(iter_count) + '_' + datetime.now().strftime("%Y%m%d%H%M%S") + '.html')
+    # fig.write_html(args.dir + '/' + str(iter_count) + '_' + datetime.now().strftime("%Y%m%d%H%M%S") + '.html')
 
     return test_auc, test_acc
 
