@@ -109,6 +109,7 @@ parser.add_argument('--mix_type', type=int, default=0)
 parser.add_argument('--intra_only', type=_str2bool, default=False)
 parser.add_argument('--norm_first', type=_str2bool, default=False)
 parser.add_argument('--threshold', type=int, default=0)
+parser.add_argument('--warmup', type=_str2bool, default=False)
 
 args = parser.parse_args()
 
@@ -174,9 +175,11 @@ def train(x_train, x_valid, x_test, y_train, y_valid, y_test, id_train, id_test,
     # training and evaluation
     ################################################################
     optimizer = Adam(model.parameters(), lr=args.learning_rate, weight_decay=args.weight_decay)
-    # scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=50, gamma=0.5, last_epoch=-1)
-    scheduler = transformers.get_cosine_schedule_with_warmup(optimizer, num_warmup_steps=args.epochs // 10,
-                                                             num_training_steps=args.epochs)
+    if args.warmup:
+        scheduler = transformers.get_cosine_schedule_with_warmup(optimizer, num_warmup_steps=args.epochs // 10,
+                                                                 num_training_steps=args.epochs)
+    else:
+        scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=50, gamma=0.5, last_epoch=-1)
     sigmoid = torch.nn.Sigmoid().to(device)
 
     max_acc, max_epoch, max_auc, max_loss, max_valid_acc, max_valid_auc = 0, 0, 0, 0, 0, 0
