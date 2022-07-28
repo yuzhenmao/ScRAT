@@ -108,6 +108,7 @@ parser.add_argument('--pca', type=_str2bool, default=True)
 parser.add_argument('--mix_type', type=int, default=0)
 parser.add_argument('--intra_only', type=_str2bool, default=False)
 parser.add_argument('--norm_first', type=_str2bool, default=False)
+parser.add_argument('--threshold', type=int, default=0)
 
 args = parser.parse_args()
 
@@ -273,7 +274,7 @@ def train(x_train, x_valid, x_test, y_train, y_valid, y_test, id_train, id_test,
             valid_losses.append(valid_loss)
 
             # if valid_auc >= max_valid_auc:
-            if valid_loss <= best_valid_loss:
+            if (valid_loss <= best_valid_loss) and (ep >= args.threshold):
                 best_model = copy.deepcopy(model)
                 best_valid_loss = valid_loss
                 max_epoch = ep
