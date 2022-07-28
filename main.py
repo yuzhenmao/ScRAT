@@ -109,7 +109,7 @@ parser.add_argument('--mix_type', type=int, default=0)
 parser.add_argument('--intra_only', type=_str2bool, default=False)
 parser.add_argument('--norm_first', type=_str2bool, default=False)
 parser.add_argument('--threshold', type=int, default=0)
-parser.add_argument('--warmup', type=_str2bool, default=False)
+parser.add_argument('--warmup', type=_str2bool, default=True)
 
 args = parser.parse_args()
 
