@@ -194,10 +194,11 @@ def train(x_train, x_valid, x_test, y_train, y_valid, y_test, id_train, id_test,
         for batch in (train_loader):
             x_ = torch.from_numpy(data_augmented[batch[0]]).float().to(device)
             y_ = batch[1].to(device)
+            mask_ = batch[3].to(device)
 
             optimizer.zero_grad()
 
-            out = model(x_)
+            out = model(x_, mask_)
 
             loss = nn.BCELoss()(sigmoid(out), y_)
             loss.backward()
@@ -280,7 +281,7 @@ def train(x_train, x_valid, x_test, y_train, y_valid, y_test, id_train, id_test,
 
             print("Epoch %d, Train Loss %f, Valid Loss %f" % (ep, train_loss, valid_loss))
 
-            if (ep > args.epochs - 50) and valid_loss >= valid_losses[-2]:
+            if (ep > args.epochs - 50) and ep > 1 and (valid_loss >= valid_losses[-2]):
                 trigger_times += 1
                 if trigger_times >= patience:
                     break
