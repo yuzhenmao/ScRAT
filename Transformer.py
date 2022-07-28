@@ -226,6 +226,9 @@ class TransformerPredictor(pl.LightningModule):
         if add_positional_encoding:
             x = self.positional_encoding(x)
         x = self.transformer(x, mask=mask)
+        if mask is not None:
+            mask_ = mask.unsqueeze(2).expand(-1, -1, self.hparams.model_dim)
+            x = x.masked_fill(mask_, 0.)
         x = x.mean(1)
         x = self.output_net(x)
         return x
