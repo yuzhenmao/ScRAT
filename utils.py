@@ -111,12 +111,17 @@ def mixups(args, data, p_idx, labels_, cell_type):
                 diff = 0
                 sampled_idx_1 = []
                 sampled_idx_2 = []
-                temp_set = set(cell_type[i])
+                temp_set = sorted(set(cell_type[i]))
                 for ct in temp_set:
                     i_sub = i[cell_type[i] == ct]
-                    diff_sub = max(args.min_size, len(i)) * len(i_sub) // len(i) + 1
-                    sampled_idx_1 += np.random.choice(i_sub, diff_sub).tolist()
-                    sampled_idx_2 += np.random.choice(i_sub, diff_sub).tolist()
+                    diff_sub = len(i_sub)
+                    sampled_idx_1 += np.random.choice(i_sub, len(i_sub), replace=False).tolist()
+                    sampled_idx_2 += np.random.choice(i_sub, len(i_sub), replace=False).tolist()
+                    if args.min_size > len(i):
+                        diff_sub_ = (args.min_size-len(i)) * len(i_sub) // len(i) + 1
+                        diff_sub += diff_sub_
+                        sampled_idx_1 += np.random.choice(i_sub, diff_sub_).tolist()
+                        sampled_idx_2 += np.random.choice(i_sub, diff_sub_).tolist()
                     cell_type_augmented = np.concatenate([cell_type_augmented, [ct] * diff_sub])
                     diff += diff_sub
                 if args.mix_type == 1:
@@ -134,7 +139,7 @@ def mixups(args, data, p_idx, labels_, cell_type):
                     diff = 0
                     sampled_idx_1 = []
                     sampled_idx_2 = []
-                    temp_set = set(cell_type[i])
+                    temp_set = sorted(set(cell_type[i]))
                     for ct in temp_set:
                         i_sub = i[cell_type[i] == ct]
                         diff_sub = max((args.min_size - len(i)) * len(i_sub) // len(i), 1)
@@ -184,7 +189,7 @@ def mixups(args, data, p_idx, labels_, cell_type):
                 id_1, id_2 = np.random.randint(len(p_idx), size=2)
                 idx_1, idx_2 = p_idx[id_1], p_idx[id_2]
             diff = 0
-            set_union = set(cell_type_augmented[idx_1]).union(set(cell_type_augmented[idx_2]))
+            set_union = sorted(set(cell_type_augmented[idx_1]).union(set(cell_type_augmented[idx_2])))
             while diff < (args.min_size // 2):
                 for ct in set_union:
                     i_sub_1 = idx_1[cell_type_augmented[idx_1] == ct]
