@@ -183,7 +183,7 @@ def train(x_train, x_valid, x_test, y_train, y_valid, y_test, id_train, id_test,
     sigmoid = torch.nn.Sigmoid().to(device)
 
     max_acc, max_epoch, max_auc, max_loss, max_valid_acc, max_valid_auc = 0, 0, 0, 0, 0, 0
-    test_accs, valid_aucs, train_losses, valid_losses, train_accs, test_aucs = [], [], [], [], [], []
+    test_accs, valid_aucs, train_losses, valid_losses, train_accs, test_aucs = [], [0.], [], [], [], []
     best_valid_loss = float("inf")
     wrongs = []
     trigger_times = 0
@@ -272,7 +272,10 @@ def train(x_train, x_valid, x_test, y_train, y_valid, y_test, id_train, id_test,
 
             # fpr, tpr, thresholds = metrics.roc_curve(true, pred, pos_label=1)
             # valid_auc = metrics.auc(fpr, tpr)
-            valid_auc = metrics.roc_auc_score(true, pred)
+            try:
+                valid_auc = metrics.roc_auc_score(true, pred)
+            except ValueError:
+                valid_auc = valid_aucs[-1]
             valid_acc = accuracy_score(true.reshape(-1), pred)
             valid_aucs.append(valid_auc)
             # valid_loss = sum(valid_loss) / len(valid_loss)
@@ -286,7 +289,7 @@ def train(x_train, x_valid, x_test, y_train, y_valid, y_test, id_train, id_test,
 
             print("Epoch %d, Train Loss %f, Valid Auc %f" % (ep, train_loss, valid_auc))
 
-            if (ep > args.epochs - 50) and ep > 1 and (valid_auc < valid_aucs[-2]):
+            if (ep > args.epochs - 50) and (valid_auc < valid_aucs[-2]):
                 trigger_times += 1
                 if trigger_times >= patience:
                     break
