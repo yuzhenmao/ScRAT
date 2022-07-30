@@ -118,7 +118,7 @@ def mixups(args, data, p_idx, labels_, cell_type):
                     sampled_idx_1 += np.random.choice(i_sub, len(i_sub), replace=False).tolist()
                     sampled_idx_2 += np.random.choice(i_sub, len(i_sub), replace=False).tolist()
                     if args.min_size > len(i):
-                        diff_sub_ = (args.min_size-len(i)) * len(i_sub) // len(i) + 1
+                        diff_sub_ = max((args.min_size - len(i)) * len(i_sub) // len(i), 1)
                         diff_sub += diff_sub_
                         sampled_idx_1 += np.random.choice(i_sub, diff_sub_).tolist()
                         sampled_idx_2 += np.random.choice(i_sub, diff_sub_).tolist()

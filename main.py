@@ -105,7 +105,7 @@ parser.add_argument('--all', type=int, default=1)
 parser.add_argument('--min_size', type=int, default=6000)
 parser.add_argument('--n_splits', type=int, default=5)
 parser.add_argument('--pca', type=_str2bool, default=True)
-parser.add_argument('--mix_type', type=int, default=0)
+parser.add_argument('--mix_type', type=int, default=1)
 parser.add_argument('--intra_only', type=_str2bool, default=False)
 parser.add_argument('--norm_first', type=_str2bool, default=False)
 parser.add_argument('--threshold', type=int, default=0)
@@ -183,11 +183,11 @@ def train(x_train, x_valid, x_test, y_train, y_valid, y_test, id_train, id_test,
     sigmoid = torch.nn.Sigmoid().to(device)
 
     max_acc, max_epoch, max_auc, max_loss, max_valid_acc, max_valid_auc = 0, 0, 0, 0, 0, 0
-    test_accs, valid_accs, train_losses, valid_losses, train_accs, test_aucs = [], [], [], [], [], []
+    test_accs, valid_aucs, train_losses, valid_losses, train_accs, test_aucs = [], [], [], [], [], []
     best_valid_loss = float("inf")
     wrongs = []
     trigger_times = 0
-    patience = 3
+    patience = 2
     for ep in (range(1, args.epochs + 1)):
         model.train()
         train_loss = []
@@ -236,7 +236,7 @@ def train(x_train, x_valid, x_test, y_train, y_valid, y_test, id_train, id_test,
             with torch.no_grad():
                 for batch in (valid_loader):
                     x_ = torch.from_numpy(data[batch[0]]).float().to(device).squeeze(0)
-                    y_ = batch[1].to(device)
+                    y_ = batch[1].int().to(device)
 
                     out = model(x_)
                     out = sigmoid(out)
@@ -247,10 +247,10 @@ def train(x_train, x_valid, x_test, y_train, y_valid, y_test, id_train, id_test,
                     # idx = np.argsort(loss)
                     # loss = loss[idx[:idx.shape[0] // 2 + 1]].mean()
                     # valid_loss.append(loss)
-                    loss = nn.BCELoss()(out, y_ * torch.ones(out.shape).to(device))
-                    valid_loss.append(loss.item())
+                    # loss = nn.BCELoss()(out, y_ * torch.ones(out.shape).to(device))
+                    # valid_loss.append(loss.item())
 
-                    # out = out.detach().cpu().numpy()
+                    out = out.detach().cpu().numpy()
 
                     # attens = model.module.attens
                     # topK = np.bincount(attens.max(-1)[1].cpu().detach().numpy().reshape(-1)).argsort()[-20:][::-1]
@@ -261,31 +261,32 @@ def train(x_train, x_valid, x_test, y_train, y_valid, y_test, id_train, id_test,
                     #         stats[types] += 1
 
                     # majority voting
-            #         f = lambda x: 1 if x > 0.5 else 0
-            #         func = np.vectorize(f)
-            #         out = np.argmax(np.bincount(func(out).reshape(-1))).reshape(-1)
-            #         pred.append(out)
-            #         y_ = y_.detach().cpu().numpy()
-            #         true.append(y_)
-            # pred = np.concatenate(pred)
-            # true = np.concatenate(true)
+                    f = lambda x: 1 if x > 0.5 else 0
+                    func = np.vectorize(f)
+                    out = np.argmax(np.bincount(func(out).reshape(-1))).reshape(-1)
+                    pred.append(out)
+                    y_ = y_.detach().cpu().numpy()
+                    true.append(y_)
+            pred = np.concatenate(pred)
+            true = np.concatenate(true)
 
             # fpr, tpr, thresholds = metrics.roc_curve(true, pred, pos_label=1)
             # valid_auc = metrics.auc(fpr, tpr)
-            # valid_acc = accuracy_score(true.reshape(-1), pred)
-            valid_loss = sum(valid_loss) / len(valid_loss)
-            valid_losses.append(valid_loss)
+            valid_auc = metrics.roc_auc_score(true, pred)
+            valid_acc = accuracy_score(true.reshape(-1), pred)
+            valid_aucs.append(valid_auc)
+            # valid_loss = sum(valid_loss) / len(valid_loss)
+            # valid_losses.append(valid_loss)
 
-            # if valid_auc >= max_valid_auc:
-            if (valid_loss <= best_valid_loss) and (ep >= args.threshold):
+            if (valid_auc >= max_valid_auc) and (ep >= args.threshold):
                 best_model = copy.deepcopy(model)
-                best_valid_loss = valid_loss
+                max_valid_auc = valid_auc
                 max_epoch = ep
                 max_loss = train_loss
 
-            print("Epoch %d, Train Loss %f, Valid Loss %f" % (ep, train_loss, valid_loss))
+            print("Epoch %d, Train Loss %f, Valid Auc %f" % (ep, train_loss, valid_auc))
 
-            if (ep > args.epochs - 50) and ep > 1 and (valid_loss >= valid_losses[-2]):
+            if (ep > args.epochs - 50) and ep > 1 and (valid_auc < valid_aucs[-2]):
                 trigger_times += 1
                 if trigger_times >= patience:
                     break
@@ -299,7 +300,7 @@ def train(x_train, x_valid, x_test, y_train, y_valid, y_test, id_train, id_test,
     with torch.no_grad():
         for batch in (test_loader):
             x_ = torch.from_numpy(data[batch[0]]).float().to(device).squeeze(0)
-            y_ = batch[1].to(device)
+            y_ = batch[1].int().to(device)
 
             out = best_model(x_)
             out = sigmoid(out)
@@ -320,18 +321,19 @@ def train(x_train, x_valid, x_test, y_train, y_valid, y_test, id_train, id_test,
             pred.append(out)
             y_ = y_.detach().cpu().numpy()
             true.append(y_)
-            if out[0] != y_[0][0]:
-                wrong.append(patient_id[batch[2][0][0][0]])
+            # if out[0] != y_[0][0]:
+            #     wrong.append(patient_id[batch[2][0][0][0]])
 
     pred = np.concatenate(pred)
     true = np.concatenate(true)
-    if len(wrongs) == 0:
-        wrongs = set(wrong)
-    else:
-        wrongs = wrongs.intersection(set(wrong))
+    # if len(wrongs) == 0:
+    #     wrongs = set(wrong)
+    # else:
+    #     wrongs = wrongs.intersection(set(wrong))
 
-    fpr, tpr, thresholds = metrics.roc_curve(true, pred, pos_label=1)
-    test_auc = metrics.auc(fpr, tpr)
+    # fpr, tpr, thresholds = metrics.roc_curve(true, pred, pos_label=1)
+    # test_auc = metrics.auc(fpr, tpr)
+    test_auc = metrics.roc_auc_score(true, pred)
     test_aucs.append(test_auc)
 
     test_acc = accuracy_score(true.reshape(-1), pred)
@@ -342,9 +344,9 @@ def train(x_train, x_valid, x_test, y_train, y_valid, y_test, id_train, id_test,
 
     # print(stats)
     print("Best performance: Epoch %d, Loss %f, Test ACC %f, Test AUC %f" % (max_epoch, max_loss, test_acc, test_auc))
-    for w in wrongs:
-        v = patient_summary.get(w, 0)
-        patient_summary[w] = v + 1
+    # for w in wrongs:
+    #     v = patient_summary.get(w, 0)
+    #     patient_summary[w] = v + 1
 
     ####################
     # Visualization
@@ -396,7 +398,6 @@ def train(x_train, x_valid, x_test, y_train, y_valid, y_test, id_train, id_test,
     # fig.write_html(args.dir + '/' + str(iter_count) + '_' + datetime.now().strftime("%Y%m%d%H%M%S") + '.html')
 
     return test_auc, test_acc
-
 
 _, p_idx, labels_, cell_type, patient_id, data = Covid_data(args)
 rkf = RepeatedKFold(n_splits=abs(args.n_splits), n_repeats=args.repeat, random_state=args.seed)
@@ -459,4 +460,4 @@ for train_index, test_index in rkf.split(num):
     del data_augmented
 
 print("Best performance: Test ACC %f,   Test AUC %f" % (np.average(accuracy), np.average(aucs)))
-print(patient_summary)
+# print(patient_summary)
