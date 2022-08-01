@@ -13,6 +13,7 @@ import plotly
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 from sklearn.model_selection import RepeatedKFold
+from sklearn.model_selection import train_test_split
 import copy
 import json
 from tqdm import tqdm
@@ -418,7 +419,18 @@ for train_index, test_index in rkf.split(num):
     for idx in train_index:
         label_stat.append(labels_[p_idx[idx][0]])
     unique, cts = np.unique(label_stat, return_counts=True)
+    if 0 in cts:
+        continue
     print(dict(zip(unique, cts)))
+
+    while True:
+        train_index, valid_index, ty, vy = train_test_split(train_index, label_stat, test_size=0.33,
+                                                              random_state=args.seed + 1)
+        if len(set(ty)) == 2 and len(set(vy)) == 2:
+            break
+
+    len_valid = len(valid_index)
+    _index = np.concatenate([valid_index, test_index])
 
     x_train = []
     x_test = []
@@ -432,7 +444,7 @@ for train_index, test_index in rkf.split(num):
     # only use the augmented data (intra-mixup, inter-mixup) as train data
     data_augmented, train_p_idx, labels_augmented = mixups(args, data, [p_idx[idx] for idx in train_index], labels_,
                                                            cell_type)
-    individual_train, individual_test = sampling(args, train_p_idx, [p_idx[idx] for idx in test_index], labels_,
+    individual_train, individual_test = sampling(args, train_p_idx, [p_idx[idx] for idx in _index], labels_,
                                                  labels_augmented)
     for t in individual_train:
         id, label = [id_l[0] for id_l in t], [id_l[1] for id_l in t]
@@ -440,14 +452,13 @@ for train_index, test_index in rkf.split(num):
         y_train += (label)
         id_train += (id)
 
-    temp_idx = np.random.permutation(len(test_index))
-    valid_size = min(len(train_index) // 2, len(test_index) // 2)
-    for t_idx in temp_idx[:-valid_size]:
+    temp_idx = np.arange(len(_index))
+    for t_idx in temp_idx[len_valid:]:
         id, label = [id_l[0] for id_l in individual_test[t_idx]], [id_l[1] for id_l in individual_test[t_idx]]
         x_test.append([ii for ii in id])
         y_test.append(label[0])
         id_test.append(id)
-    for t_idx in temp_idx[-valid_size:]:
+    for t_idx in temp_idx[:len_valid]:
         id, label = [id_l[0] for id_l in individual_test[t_idx]], [id_l[1] for id_l in individual_test[t_idx]]
         x_valid.append([ii for ii in id])
         y_valid.append(label[0])
