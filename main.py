@@ -110,7 +110,7 @@ parser.add_argument('--mix_type', type=int, default=1)
 parser.add_argument('--intra_only', type=_str2bool, default=False)
 parser.add_argument('--norm_first', type=_str2bool, default=False)
 parser.add_argument('--threshold', type=int, default=0)
-parser.add_argument('--warmup', type=_str2bool, default=True)
+parser.add_argument('--warmup', type=_str2bool, default=False)
 
 args = parser.parse_args()
 
@@ -220,6 +220,9 @@ def train(x_train, x_valid, x_test, y_train, y_valid, y_test, id_train, id_test,
 
         scheduler.step()
 
+        # my_lr = scheduler.get_lr()
+        # print(my_lr)
+
         train_loss = sum(train_loss) / len(train_loss)
         train_losses.append(train_loss)
         train_acc = 0
@@ -243,13 +246,8 @@ def train(x_train, x_valid, x_test, y_train, y_valid, y_test, id_train, id_test,
                     out = sigmoid(out)
                     # out = out.detach().cpu().numpy()
 
-                    # loss = nn.BCELoss(reduce=False)(sigmoid(out), y_ * torch.ones(out.shape).to(device))
-                    # loss = loss.cpu().numpy().reshape(-1)
-                    # idx = np.argsort(loss)
-                    # loss = loss[idx[:idx.shape[0] // 2 + 1]].mean()
-                    # valid_loss.append(loss)
-                    # loss = nn.BCELoss()(out, y_ * torch.ones(out.shape).to(device))
-                    # valid_loss.append(loss.item())
+                    loss = nn.BCELoss()(out, y_ * torch.ones(out.shape).to(device))
+                    valid_loss.append(loss.item())
 
                     out = out.detach().cpu().numpy()
 
@@ -273,24 +271,24 @@ def train(x_train, x_valid, x_test, y_train, y_valid, y_test, id_train, id_test,
 
             # fpr, tpr, thresholds = metrics.roc_curve(true, pred, pos_label=1)
             # valid_auc = metrics.auc(fpr, tpr)
-            try:
-                valid_auc = metrics.roc_auc_score(true, pred)
-            except ValueError:
-                valid_auc = valid_aucs[-1]
+            valid_auc = metrics.roc_auc_score(true, pred)
             valid_acc = accuracy_score(true.reshape(-1), pred)
             valid_aucs.append(valid_auc)
-            # valid_loss = sum(valid_loss) / len(valid_loss)
-            # valid_losses.append(valid_loss)
+            valid_loss = sum(valid_loss) / len(valid_loss)
+            valid_losses.append(valid_loss)
 
-            if (valid_auc >= max_valid_auc) and (ep >= args.threshold):
+            # if (valid_auc > max_valid_auc) and (ep >= args.threshold):
+            if (valid_loss < best_valid_loss) and (ep >= args.threshold):
                 best_model = copy.deepcopy(model)
                 max_valid_auc = valid_auc
                 max_epoch = ep
+                best_valid_loss = valid_loss
                 max_loss = train_loss
 
-            print("Epoch %d, Train Loss %f, Valid Auc %f" % (ep, train_loss, valid_auc))
+            print("Epoch %d, Train Loss %f, Valid_loss %f, Valid Auc %f" % (ep, train_loss, valid_loss, valid_auc))
 
-            if (ep > args.epochs - 50) and (valid_auc < valid_aucs[-2]):
+            # if (ep > args.epochs - 50) and (valid_auc < valid_aucs[-2]):
+            if (ep > args.epochs - 50) and ep > 1 and (valid_loss > valid_losses[-2]):
                 trigger_times += 1
                 if trigger_times >= patience:
                     break
