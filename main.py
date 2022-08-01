@@ -424,11 +424,12 @@ for train_index, test_index in rkf.split(num):
     print(dict(zip(unique, cts)))
 
     while True:
-        train_index, valid_index, ty, vy = train_test_split(train_index, label_stat, test_size=0.33,
+        train_index_, valid_index, ty, vy = train_test_split(train_index, label_stat, test_size=0.33,
                                                               random_state=args.seed + 1)
         if len(set(ty)) == 2 and len(set(vy)) == 2:
             break
 
+    train_index = train_index_
     len_valid = len(valid_index)
     _index = np.concatenate([valid_index, test_index])
 
