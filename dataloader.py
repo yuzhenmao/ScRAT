@@ -49,17 +49,23 @@ def Covid_data(args):
 
     labels_ = np.array(labels.map(id_dict))
 
+    l_dict = {}
     indices = np.arange(origin.shape[0])
     p_ids = sorted(set(patient_id))
     p_idx = []
     for i in p_ids:
         idx = indices[patient_id == i]
-        if labels_[idx[0]] > -1:
-            if len(set(labels_[idx])) > 1:
-                for ii in sorted(set(labels_[idx])):
+        if len(set(labels_[idx])) > 1:
+            for ii in sorted(set(labels_[idx])):
+                if ii > -1:
                     iidx = idx[labels_[idx] == ii]
                     p_idx.append(iidx)
-            else:
+                    l_dict[labels_[iidx[0]]] = l_dict.get(labels_[iidx[0]], 0) + 1
+        else:
+            if labels_[idx[0]] > -1:
                 p_idx.append(idx)
+                l_dict[labels_[idx[0]]] = l_dict.get(labels_[idx[0]], 0) + 1
 
+    print(l_dict)
+    
     return [], p_idx, labels_, cell_type, patient_id, origin
