@@ -402,7 +402,7 @@ def train(x_train, x_valid, x_test, y_train, y_valid, y_test, id_train, id_test,
     return test_auc, test_acc
 
 _, p_idx, labels_, cell_type, patient_id, data = Covid_data(args)
-rkf = RepeatedKFold(n_splits=abs(args.n_splits), n_repeats=args.repeat, random_state=args.seed)
+rkf = RepeatedKFold(n_splits=abs(args.n_splits), n_repeats=args.repeat*2, random_state=args.seed)
 num = np.arange(len(p_idx))
 accuracy, aucs = [], []
 iter_count = 0
@@ -469,6 +469,8 @@ for train_index, test_index in rkf.split(num):
     aucs.append(auc)
     accuracy.append(acc)
     iter_count += 1
+    if iter_count == abs(args.n_splits) * args.repeat:
+        break
 
     del data_augmented
 
