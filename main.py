@@ -433,6 +433,11 @@ for train_index, test_index in rkf.split(num):
     len_valid = len(valid_index)
     _index = np.concatenate([valid_index, test_index])
 
+    train_ids = []
+    for i in train_index:
+        train_ids.append(patient_id[p_idx[i][0]])
+    print(train_ids)
+
     x_train = []
     x_test = []
     x_valid = []
