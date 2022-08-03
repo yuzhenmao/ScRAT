@@ -417,7 +417,7 @@ for train_index, test_index in rkf.split(num):
     for idx in train_index:
         label_stat.append(labels_[p_idx[idx][0]])
     unique, cts = np.unique(label_stat, return_counts=True)
-    if len(unique) < 2:
+    if len(unique) < 2 or (1 in cts):
         continue
     print(dict(zip(unique, cts)))
 
