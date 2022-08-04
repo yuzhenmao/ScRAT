@@ -55,6 +55,8 @@ def Covid_data(args):
     p_idx = []
     for i in p_ids:
         idx = indices[patient_id == i]
+        if len(idx) < 500:
+            continue
         if len(set(labels_[idx])) > 1:
             for ii in sorted(set(labels_[idx])):
                 if ii > -1:
