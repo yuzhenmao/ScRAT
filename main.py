@@ -323,15 +323,15 @@ def train(x_train, x_valid, x_test, y_train, y_valid, y_test, id_train, id_test,
             pred.append(out)
             y_ = y_.detach().cpu().numpy()
             true.append(y_)
-            # if out[0] != y_[0][0]:
-            #     wrong.append(patient_id[batch[2][0][0][0]])
+            if out[0] != y_[0][0]:
+                wrong.append(patient_id[batch[2][0][0][0]])
 
     pred = np.concatenate(pred)
     true = np.concatenate(true)
-    # if len(wrongs) == 0:
-    #     wrongs = set(wrong)
-    # else:
-    #     wrongs = wrongs.intersection(set(wrong))
+    if len(wrongs) == 0:
+        wrongs = set(wrong)
+    else:
+        wrongs = wrongs.intersection(set(wrong))
 
     # fpr, tpr, thresholds = metrics.roc_curve(true, pred, pos_label=1)
     # test_auc = metrics.auc(fpr, tpr)
@@ -346,9 +346,9 @@ def train(x_train, x_valid, x_test, y_train, y_valid, y_test, id_train, id_test,
 
     # print(stats)
     print("Best performance: Epoch %d, Loss %f, Test ACC %f, Test AUC %f" % (max_epoch, max_loss, test_acc, test_auc))
-    # for w in wrongs:
-    #     v = patient_summary.get(w, 0)
-    #     patient_summary[w] = v + 1
+    for w in wrongs:
+        v = patient_summary.get(w, 0)
+        patient_summary[w] = v + 1
 
     ####################
     # Visualization
@@ -482,4 +482,4 @@ for train_index, test_index in rkf.split(num):
     del data_augmented
 
 print("Best performance: Test ACC %f,   Test AUC %f" % (np.average(accuracy), np.average(aucs)))
-# print(patient_summary)
+print(patient_summary)
