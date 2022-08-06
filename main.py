@@ -121,6 +121,7 @@ torch.manual_seed(args.seed)
 np.random.seed(args.seed)
 
 patient_summary = {}
+stats = {}
 
 
 # x_train, x_valid, x_test, y_train, y_valid, y_test = scRNA_data(cell_num=100)  # numpy array
@@ -169,8 +170,6 @@ def train(x_train, x_valid, x_test, y_train, y_valid, y_test, id_train, id_test,
     best_model = model
 
     print(device)
-
-    stats = {}
 
     ################################################################
     # training and evaluation
@@ -303,18 +302,17 @@ def train(x_train, x_valid, x_test, y_train, y_valid, y_test, id_train, id_test,
         for batch in (test_loader):
             x_ = torch.from_numpy(data[batch[0]]).float().to(device).squeeze(0)
             y_ = batch[1].int().to(device)
+            id_ = batch[2][0]
 
             out = best_model(x_)
             out = sigmoid(out)
             out = out.detach().cpu().numpy()
 
-            # attens = model.module.attens
-            # topK = np.bincount(attens.max(-1)[1].cpu().detach().numpy().reshape(-1)).argsort()[-20:][::-1]
-            # for types in id_[topK]:
-            #     if stats.get(types, 0) == 0:
-            #         stats[types] = 1
-            #     else:
-            #         stats[types] += 1
+            attens = best_model.module.get_attention_maps(x_)[-1]
+            for iter in range(len(attens)):
+                topK = np.bincount(attens[iter].max(-1)[1].cpu().detach().numpy().reshape(-1)).argsort()[-20:][::-1]
+                for types in cell_type_64[id_[iter][topK]]:
+                    stats[types] = stats.get(types, 0) + 1
 
             # majority voting
             f = lambda x: 1 if x > 0.5 else 0
@@ -344,7 +342,6 @@ def train(x_train, x_valid, x_test, y_train, y_valid, y_test, id_train, id_test,
     # print("Epoch %d, Train Loss %f, Train ACC %f, Valid ACC %f, Test ACC %f,"%(ep, train_loss, train_acc, valid_acc, test_acc))
     # print("Epoch %d, Train Loss %f, Test ACC %f,"%(ep, train_loss, test_acc))
 
-    # print(stats)
     print("Best performance: Epoch %d, Loss %f, Test ACC %f, Test AUC %f" % (max_epoch, max_loss, test_acc, test_auc))
     for w in wrongs:
         v = patient_summary.get(w, 0)
@@ -401,7 +398,7 @@ def train(x_train, x_valid, x_test, y_train, y_valid, y_test, id_train, id_test,
 
     return test_auc, test_acc
 
-_, p_idx, labels_, cell_type, patient_id, data = Covid_data(args)
+_, p_idx, labels_, cell_type, patient_id, data, cell_type_64 = Covid_data(args)
 rkf = RepeatedKFold(n_splits=abs(args.n_splits), n_repeats=args.repeat*2, random_state=args.seed)
 num = np.arange(len(p_idx))
 accuracy, aucs = [], []
@@ -483,3 +480,4 @@ for train_index, test_index in rkf.split(num):
 
 print("Best performance: Test ACC %f,   Test AUC %f" % (np.average(accuracy), np.average(aucs)))
 print(patient_summary)
+print(stats)
