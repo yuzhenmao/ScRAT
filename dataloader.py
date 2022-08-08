@@ -39,6 +39,10 @@ def Covid_data(args):
     cell_type = pickle.load(a_file)
     a_file.close()
 
+    a_file = open('cell_type_64.pkl', "rb")
+    cell_type_64 = pickle.load(a_file)
+    a_file.close()
+
     id_dict = {}
     if args.task == 'severity':
         id_dict = {'mild/moderate': 0, 'severe/critical': 1, 'control': -1}
@@ -70,4 +74,4 @@ def Covid_data(args):
 
     print(l_dict)
     
-    return [], p_idx, labels_, cell_type, patient_id, origin
+    return [], p_idx, labels_, cell_type, patient_id, origin, cell_type_64
