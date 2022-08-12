@@ -228,10 +228,10 @@ def mixups(args, data, p_idx, labels_, cell_type):
                 [labels_augmented, [lam * labels_augmented[idx_1[0]] + (1 - lam) * labels_augmented[idx_2[0]]] * diff])
             p_idx_augmented.append(np.arange(labels_augmented.shape[0] - diff, labels_augmented.shape[0]))
 
-    return data_augmented[:last], p_idx_augmented, labels_augmented
+    return data_augmented[:last], p_idx_augmented, labels_augmented, cell_type_augmented
 
 
-def sampling(args, train_p_idx, test_p_idx, labels_, labels_augmented):
+def sampling(args, train_p_idx, test_p_idx, labels_, labels_augmented, cell_type_augmented):
     if args.all == 0:
         individual_train = []
         individual_test = []

@@ -445,10 +445,10 @@ for train_index, test_index in rkf.split(num):
     id_test = []
     id_valid = []
     # only use the augmented data (intra-mixup, inter-mixup) as train data
-    data_augmented, train_p_idx, labels_augmented = mixups(args, data, [p_idx[idx] for idx in train_index], labels_,
+    data_augmented, train_p_idx, labels_augmented, cell_type_augmented = mixups(args, data, [p_idx[idx] for idx in train_index], labels_,
                                                            cell_type)
     individual_train, individual_test = sampling(args, train_p_idx, [p_idx[idx] for idx in _index], labels_,
-                                                 labels_augmented)
+                                                 labels_augmented, cell_type_augmented)
     for t in individual_train:
         id, label = [id_l[0] for id_l in t], [id_l[1] for id_l in t]
         x_train += [ii for ii in id]
