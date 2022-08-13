@@ -12,6 +12,7 @@ import argparse
 import plotly
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
+from sklearn.metrics import confusion_matrix
 from sklearn.model_selection import RepeatedKFold
 from sklearn.model_selection import train_test_split
 import copy
@@ -339,6 +340,8 @@ def train(x_train, x_valid, x_test, y_train, y_valid, y_test, id_train, id_test,
     test_acc = accuracy_score(true.reshape(-1), pred)
     test_accs.append(test_acc)
 
+    cm = confusion_matrix(true.reshape(-1), pred).ravel()
+
     # print("Epoch %d, Train Loss %f, Train ACC %f, Valid ACC %f, Test ACC %f,"%(ep, train_loss, train_acc, valid_acc, test_acc))
     # print("Epoch %d, Train Loss %f, Test ACC %f,"%(ep, train_loss, test_acc))
 
@@ -396,12 +399,12 @@ def train(x_train, x_valid, x_test, y_train, y_valid, y_test, id_train, id_test,
 
     # fig.write_html(args.dir + '/' + str(iter_count) + '_' + datetime.now().strftime("%Y%m%d%H%M%S") + '.html')
 
-    return test_auc, test_acc
+    return test_auc, test_acc, cm
 
 _, p_idx, labels_, cell_type, patient_id, data, cell_type_64 = Covid_data(args)
 rkf = RepeatedKFold(n_splits=abs(args.n_splits), n_repeats=args.repeat*2, random_state=args.seed)
 num = np.arange(len(p_idx))
-accuracy, aucs = [], []
+accuracy, aucs, cms = [], [], []
 iter_count = 0
 
 for train_index, test_index in rkf.split(num):
@@ -469,9 +472,10 @@ for train_index, test_index in rkf.split(num):
     x_train, x_valid, x_test, y_train, y_valid, y_test = x_train, x_valid, x_test, np.array(y_train).reshape([-1, 1]), \
                                                          np.array(y_valid).reshape([-1, 1]), np.array(y_test).reshape(
         [-1, 1])
-    auc, acc = train(x_train, x_valid, x_test, y_train, y_valid, y_test, id_train, id_test, data_augmented, data)
+    auc, acc, cm = train(x_train, x_valid, x_test, y_train, y_valid, y_test, id_train, id_test, data_augmented, data)
     aucs.append(auc)
     accuracy.append(acc)
+    cms.append(cm)
     iter_count += 1
     if iter_count == abs(args.n_splits) * args.repeat:
         break
@@ -479,5 +483,6 @@ for train_index, test_index in rkf.split(num):
     del data_augmented
 
 print("Best performance: Test ACC %f,   Test AUC %f" % (np.average(accuracy), np.average(aucs)))
+print(np.average(cms, 0))
 print(patient_summary)
 print(stats)
