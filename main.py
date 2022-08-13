@@ -309,11 +309,12 @@ def train(x_train, x_valid, x_test, y_train, y_valid, y_test, id_train, id_test,
             out = sigmoid(out)
             out = out.detach().cpu().numpy()
 
-            attens = best_model.module.get_attention_maps(x_)[-1]
-            for iter in range(len(attens)):
-                topK = np.bincount(attens[iter].max(-1)[1].cpu().detach().numpy().reshape(-1)).argsort()[-20:][::-1]
-                for types in cell_type_64[id_[iter][topK]]:
-                    stats[types] = stats.get(types, 0) + 1
+            if args.model == 'Transformer':
+                attens = best_model.module.get_attention_maps(x_)[-1]
+                for iter in range(len(attens)):
+                    topK = np.bincount(attens[iter].max(-1)[1].cpu().detach().numpy().reshape(-1)).argsort()[-20:][::-1]
+                    for types in cell_type_64[id_[iter][topK]]:
+                        stats[types] = stats.get(types, 0) + 1
 
             # majority voting
             f = lambda x: 1 if x > 0.5 else 0

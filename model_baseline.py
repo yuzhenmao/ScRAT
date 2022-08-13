@@ -203,7 +203,7 @@ class FeedForward(nn.Module):
         super().__init__()
         self.ff = FeedForward_(h_dim1=input_dim, h_dim2=cl, d_ff=h_dim, dropout=dropout)
 
-    def forward(self, src):
+    def forward(self, src, mask=None):
         e_outputs = torch.mean(src, dim=1)
         output = self.ff(e_outputs)
         return output
@@ -214,7 +214,7 @@ class Linear_Classfier(nn.Module):
         super().__init__()
         self.out1 = nn.Linear(input_dim, cl)
 
-    def forward(self, src):
+    def forward(self, src, mask=None):
         e_outputs = torch.mean(src, dim=1)
         output = self.out1(e_outputs)
         return output
