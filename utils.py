@@ -260,12 +260,14 @@ def sampling(args, train_p_idx, test_p_idx, labels_, labels_augmented, cell_type
                 temp.append((sample, y))
             individual_test.append(temp)
     else:
+        max_length = max([len(tt) for tt in train_p_idx])
         individual_train = []
         individual_test = []
         for idx in train_p_idx:
             y = labels_augmented[idx[0]]
             temp = []
-            sample = idx
+            sample = np.zeros(max_length, dtype=int) - 1
+            sample[:idx.shape[0]] = idx
             temp.append((sample, y))
             individual_train.append(temp)
         for idx in test_p_idx:
