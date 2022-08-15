@@ -1,6 +1,7 @@
 import numpy as np
 from sklearn import metrics
 from sklearn.metrics import accuracy_score
+import scipy.stats as st
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -342,11 +343,14 @@ def train(x_train, x_valid, x_test, y_train, y_valid, y_test, id_train, id_test,
     test_accs.append(test_acc)
 
     cm = confusion_matrix(true.reshape(-1), pred).ravel()
+    recall = cm[3] / (cm[3] + cm[2])
+    precision = cm[3] / (cm[3] + cm[1])
 
     # print("Epoch %d, Train Loss %f, Train ACC %f, Valid ACC %f, Test ACC %f,"%(ep, train_loss, train_acc, valid_acc, test_acc))
     # print("Epoch %d, Train Loss %f, Test ACC %f,"%(ep, train_loss, test_acc))
 
-    print("Best performance: Epoch %d, Loss %f, Test ACC %f, Test AUC %f" % (max_epoch, max_loss, test_acc, test_auc))
+    print("Best performance: Epoch %d, Loss %f, Test ACC %f, Test AUC %f, Test Recall %f, Test Precision %f" % (max_epoch, max_loss, test_acc, test_auc, recall, precision))
+    print("Confusion Matrix: " +str(cm))
     for w in wrongs:
         v = patient_summary.get(w, 0)
         patient_summary[w] = v + 1
@@ -400,12 +404,12 @@ def train(x_train, x_valid, x_test, y_train, y_valid, y_test, id_train, id_test,
 
     # fig.write_html(args.dir + '/' + str(iter_count) + '_' + datetime.now().strftime("%Y%m%d%H%M%S") + '.html')
 
-    return test_auc, test_acc, cm
+    return test_auc, test_acc, cm, recall, precision
 
 _, p_idx, labels_, cell_type, patient_id, data, cell_type_64 = Covid_data(args)
-rkf = RepeatedKFold(n_splits=abs(args.n_splits), n_repeats=args.repeat*2, random_state=args.seed)
+rkf = RepeatedKFold(n_splits=abs(args.n_splits), n_repeats=args.repeat*5, random_state=args.seed)
 num = np.arange(len(p_idx))
-accuracy, aucs, cms = [], [], []
+accuracy, aucs, cms, recalls, precisions = [], [], [], [], []
 iter_count = 0
 
 for train_index, test_index in rkf.split(num):
@@ -473,17 +477,28 @@ for train_index, test_index in rkf.split(num):
     x_train, x_valid, x_test, y_train, y_valid, y_test = x_train, x_valid, x_test, np.array(y_train).reshape([-1, 1]), \
                                                          np.array(y_valid).reshape([-1, 1]), np.array(y_test).reshape(
         [-1, 1])
-    auc, acc, cm = train(x_train, x_valid, x_test, y_train, y_valid, y_test, id_train, id_test, data_augmented, data)
+    auc, acc, cm, recall, precision = train(x_train, x_valid, x_test, y_train, y_valid, y_test, id_train, id_test, data_augmented, data)
     aucs.append(auc)
     accuracy.append(acc)
     cms.append(cm)
+    recalls.append(recall)
+    precisions.append(precision)
     iter_count += 1
     if iter_count == abs(args.n_splits) * args.repeat:
         break
 
     del data_augmented
 
-print("Best performance: Test ACC %f,   Test AUC %f" % (np.average(accuracy), np.average(aucs)))
+print("Best performance: Test ACC %f,   Test AUC %f,   Test Recall %f,   Test Precision %f" % (np.average(accuracy), np.average(aucs), np.average(recalls), np.average(precisions)))
+accuracy = np.array(accuracy).reshape([-1, args.repeat]).mean(0)
+aucs = np.array(aucs).reshape([-1, args.repeat]).mean(0)
+recalls = np.array(recalls).reshape([-1, args.repeat]).mean(0)
+precisions = np.array(precisions).reshape([-1, args.repeat]).mean(0)
+ci_1 = st.t.interval(alpha=0.95, df=len(accuracy)-1, loc=np.mean(accuracy), scale=st.sem(accuracy))[1] - np.mean(accuracy)
+ci_2 = st.t.interval(alpha=0.95, df=len(aucs)-1, loc=np.mean(aucs), scale=st.sem(aucs))[1] - np.mean(aucs)
+ci_3 = st.t.interval(alpha=0.95, df=len(recalls)-1, loc=np.mean(recalls), scale=st.sem(recalls))[1] - np.mean(recalls)
+ci_4 = st.t.interval(alpha=0.95, df=len(precisions)-1, loc=np.mean(precisions), scale=st.sem(precisions))[1] - np.mean(precisions)
+print("ci: ACC ci %f,   AUC ci %f,   Recall ci %f,   Precision ci %f" % (ci_1, ci_2, ci_3, ci_4))
 print(np.average(cms, 0))
 print(patient_summary)
 print(stats)
