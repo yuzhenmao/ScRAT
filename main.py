@@ -345,6 +345,8 @@ def train(x_train, x_valid, x_test, y_train, y_valid, y_test, id_train, id_test,
     cm = confusion_matrix(true.reshape(-1), pred).ravel()
     recall = cm[3] / (cm[3] + cm[2])
     precision = cm[3] / (cm[3] + cm[1])
+    if (cm[3] + cm[1]) == 0:
+        precision = 0
 
     # print("Epoch %d, Train Loss %f, Train ACC %f, Valid ACC %f, Test ACC %f,"%(ep, train_loss, train_acc, valid_acc, test_acc))
     # print("Epoch %d, Train Loss %f, Test ACC %f,"%(ep, train_loss, test_acc))
@@ -421,6 +423,18 @@ for train_index, test_index in rkf.split(num):
         temp_idx = train_index
         train_index = test_index
         test_index = temp_idx
+
+    # label_stat = []
+    # for idx in test_index:
+    #     label_stat.append(labels_[p_idx[idx][0]])
+    # label_stat = np.array(label_stat)
+    # unique, cts = np.unique(label_stat, return_counts=True)
+    # if len(unique) < 2 or (1 in cts):
+    #     continue
+    # if cts.max() > 2 * cts.min():
+    #     temp_ = np.random.choice(test_index[label_stat == cts.argmax()], 2 * cts.min(), replace=False)
+    #     test_index = np.concatenate([temp_, test_index[label_stat == cts.argmin()]])
+
 
     label_stat = []
     for idx in train_index:
