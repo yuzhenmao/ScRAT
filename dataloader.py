@@ -17,9 +17,6 @@ from sklearn.model_selection import train_test_split
 
 
 def Covid_data(args):
-    random.seed(args.seed+1)
-    np.random.seed(args.seed+2)
-
     if args.pca == True:
         with open('covid_pca.npy', 'rb') as f:
             origin = np.load(f)
