@@ -300,6 +300,7 @@ def train(x_train, x_valid, x_test, y_train, y_valid, y_test, id_train, id_test,
     pred = []
     true = []
     wrong = []
+    prob = []
     with torch.no_grad():
         for batch in (test_loader):
             x_ = torch.from_numpy(data[batch[0]]).float().to(device).squeeze(0)
@@ -316,6 +317,11 @@ def train(x_train, x_valid, x_test, y_train, y_valid, y_test, id_train, id_test,
                     topK = np.bincount(attens[iter].max(-1)[1].cpu().detach().numpy().reshape(-1)).argsort()[-20:][::-1]
                     for types in cell_type_64[id_[iter][topK]]:
                         stats[types] = stats.get(types, 0) + 1
+
+            if args.model != 'Transformer':
+                prob.append(out[0][0])
+            else:
+                prob.append(out.mean())
 
             # majority voting
             f = lambda x: 1 if x > 0.5 else 0
@@ -336,8 +342,7 @@ def train(x_train, x_valid, x_test, y_train, y_valid, y_test, id_train, id_test,
 
     # fpr, tpr, thresholds = metrics.roc_curve(true, pred, pos_label=1)
     # test_auc = metrics.auc(fpr, tpr)
-    test_auc = metrics.roc_auc_score(true, pred)
-    test_aucs.append(test_auc)
+    test_auc = metrics.roc_auc_score(true, prob)
 
     test_acc = accuracy_score(true.reshape(-1), pred)
     test_accs.append(test_acc)
