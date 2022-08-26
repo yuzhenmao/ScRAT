@@ -272,21 +272,21 @@ def train(x_train, x_valid, x_test, y_train, y_valid, y_test, id_train, id_test,
 
             # fpr, tpr, thresholds = metrics.roc_curve(true, pred, pos_label=1)
             # valid_auc = metrics.auc(fpr, tpr)
-            valid_auc = metrics.roc_auc_score(true, pred)
-            valid_acc = accuracy_score(true.reshape(-1), pred)
-            valid_aucs.append(valid_auc)
+            # valid_auc = metrics.roc_auc_score(true, pred)
+            # valid_acc = accuracy_score(true.reshape(-1), pred)
+            # valid_aucs.append(valid_auc)
             valid_loss = sum(valid_loss) / len(valid_loss)
             valid_losses.append(valid_loss)
 
             # if (valid_auc > max_valid_auc) and (ep >= args.threshold):
             if (valid_loss < best_valid_loss) and (ep >= args.threshold):
                 best_model = copy.deepcopy(model)
-                max_valid_auc = valid_auc
+                # max_valid_auc = valid_auc
                 max_epoch = ep
                 best_valid_loss = valid_loss
                 max_loss = train_loss
 
-            print("Epoch %d, Train Loss %f, Valid_loss %f, Valid Auc %f" % (ep, train_loss, valid_loss, valid_auc))
+            print("Epoch %d, Train Loss %f, Valid_loss %f" % (ep, train_loss, valid_loss))
 
             # if (ep > args.epochs - 50) and (valid_auc < valid_aucs[-2]):
             if (ep > args.epochs - 50) and ep > 1 and (valid_loss > valid_losses[-2]):
