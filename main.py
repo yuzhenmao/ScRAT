@@ -309,7 +309,7 @@ def train(x_train, x_valid, x_test, y_train, y_valid, y_test, id_train, id_test,
 
             out = best_model(x_)
             out = sigmoid(out)
-            out = out.detach().cpu().numpy()
+            out = out.detach().cpu().numpy().reshape(-1)
 
             if args.model == 'Transformer':
                 attens = best_model.module.get_attention_maps(x_)[-1]
@@ -318,23 +318,22 @@ def train(x_train, x_valid, x_test, y_train, y_valid, y_test, id_train, id_test,
                     for types in cell_type_64[id_[iter][topK]]:
                         stats[types] = stats.get(types, 0) + 1
 
+            y_ = y_.detach().cpu().numpy()[0][0]
+            true.append(y_)
+
             if args.model != 'Transformer':
-                prob.append(out[0][0])
+                prob.append(out[0])
             else:
                 prob.append(out.mean())
 
             # majority voting
             f = lambda x: 1 if x > 0.5 else 0
             func = np.vectorize(f)
-            out = np.argmax(np.bincount(func(out).reshape(-1))).reshape(-1)
+            out = np.argmax(np.bincount(func(out).reshape(-1))).reshape(-1)[0]
             pred.append(out)
-            y_ = y_.detach().cpu().numpy()
-            true.append(y_)
-            if out[0] != y_[0][0]:
+            if out != y_:
                 wrong.append(patient_id[batch[2][0][0][0]])
 
-    pred = np.concatenate(pred)
-    true = np.concatenate(true)
     if len(wrongs) == 0:
         wrongs = set(wrong)
     else:
@@ -344,10 +343,10 @@ def train(x_train, x_valid, x_test, y_train, y_valid, y_test, id_train, id_test,
     # test_auc = metrics.auc(fpr, tpr)
     test_auc = metrics.roc_auc_score(true, prob)
 
-    test_acc = accuracy_score(true.reshape(-1), pred)
+    test_acc = accuracy_score(true, pred)
     test_accs.append(test_acc)
 
-    cm = confusion_matrix(true.reshape(-1), pred).ravel()
+    cm = confusion_matrix(true, pred).ravel()
     recall = cm[3] / (cm[3] + cm[2])
     precision = cm[3] / (cm[3] + cm[1])
     if (cm[3] + cm[1]) == 0:
