@@ -111,8 +111,9 @@ parser.add_argument('--pca', type=_str2bool, default=True)
 parser.add_argument('--mix_type', type=int, default=1)
 parser.add_argument('--intra_only', type=_str2bool, default=False)
 parser.add_argument('--norm_first', type=_str2bool, default=False)
-parser.add_argument('--threshold', type=int, default=0)
+parser.add_argument('--threshold', type=float, default=0.5)
 parser.add_argument('--warmup', type=_str2bool, default=False)
+parser.add_argument('--top_k', type=_str2bool, default=False)
 
 args = parser.parse_args()
 
@@ -230,8 +231,6 @@ def train(x_train, x_valid, x_test, y_train, y_valid, y_test, id_train, id_test,
 
         # pred = np.concatenate(pred)
         # true = np.concatenate(true)
-        # fpr, tpr, thresholds = metrics.roc_curve(true, pred, pos_label=1)
-        # AUC = metrics.auc(fpr, tpr)
 
         if ep % 1 == 0:
             valid_loss = []
@@ -270,7 +269,6 @@ def train(x_train, x_valid, x_test, y_train, y_valid, y_test, id_train, id_test,
             pred = np.concatenate(pred)
             true = np.concatenate(true)
 
-            # fpr, tpr, thresholds = metrics.roc_curve(true, pred, pos_label=1)
             # valid_auc = metrics.auc(fpr, tpr)
             # valid_auc = metrics.roc_auc_score(true, pred)
             # valid_acc = accuracy_score(true.reshape(-1), pred)
@@ -278,8 +276,7 @@ def train(x_train, x_valid, x_test, y_train, y_valid, y_test, id_train, id_test,
             valid_loss = sum(valid_loss) / len(valid_loss)
             valid_losses.append(valid_loss)
 
-            # if (valid_auc > max_valid_auc) and (ep >= args.threshold):
-            if (valid_loss < best_valid_loss) and (ep >= args.threshold):
+            if (valid_loss < best_valid_loss):
                 best_model = copy.deepcopy(model)
                 # max_valid_auc = valid_auc
                 max_epoch = ep
@@ -304,10 +301,13 @@ def train(x_train, x_valid, x_test, y_train, y_valid, y_test, id_train, id_test,
     with torch.no_grad():
         for batch in (test_loader):
             x_ = torch.from_numpy(data[batch[0]]).float().to(device).squeeze(0)
-            y_ = batch[1].int().to(device)
+            y_ = batch[1].int().numpy()
             id_ = batch[2][0]
 
-            out = best_model(x_)
+            if args.top_k:
+                out = best_model(x_)
+            else:
+                out = best_model(x_, task='test')
             out = sigmoid(out)
             out = out.detach().cpu().numpy().reshape(-1)
 
@@ -318,7 +318,7 @@ def train(x_train, x_valid, x_test, y_train, y_valid, y_test, id_train, id_test,
                     for types in cell_type_64[id_[iter][topK]]:
                         stats[types] = stats.get(types, 0) + 1
 
-            y_ = y_.detach().cpu().numpy()[0][0]
+            y_ = y_[0][0]
             true.append(y_)
 
             if args.model != 'Transformer':
@@ -339,8 +339,6 @@ def train(x_train, x_valid, x_test, y_train, y_valid, y_test, id_train, id_test,
     else:
         wrongs = wrongs.intersection(set(wrong))
 
-    # fpr, tpr, thresholds = metrics.roc_curve(true, pred, pos_label=1)
-    # test_auc = metrics.auc(fpr, tpr)
     test_auc = metrics.roc_auc_score(true, prob)
 
     test_acc = accuracy_score(true, pred)
@@ -355,8 +353,9 @@ def train(x_train, x_valid, x_test, y_train, y_valid, y_test, id_train, id_test,
     # print("Epoch %d, Train Loss %f, Train ACC %f, Valid ACC %f, Test ACC %f,"%(ep, train_loss, train_acc, valid_acc, test_acc))
     # print("Epoch %d, Train Loss %f, Test ACC %f,"%(ep, train_loss, test_acc))
 
-    print("Best performance: Epoch %d, Loss %f, Test ACC %f, Test AUC %f, Test Recall %f, Test Precision %f" % (max_epoch, max_loss, test_acc, test_auc, recall, precision))
-    print("Confusion Matrix: " +str(cm))
+    print("Best performance: Epoch %d, Loss %f, Test ACC %f, Test AUC %f, Test Recall %f, Test Precision %f" % (
+    max_epoch, max_loss, test_acc, test_auc, recall, precision))
+    print("Confusion Matrix: " + str(cm))
     for w in wrongs:
         v = patient_summary.get(w, 0)
         patient_summary[w] = v + 1
@@ -417,7 +416,7 @@ if args.model != 'Transformer':
     args.repeat = 60
 
 _, p_idx, labels_, cell_type, patient_id, data, cell_type_64 = Covid_data(args)
-rkf = RepeatedKFold(n_splits=abs(args.n_splits), n_repeats=args.repeat*100, random_state=args.seed)
+rkf = RepeatedKFold(n_splits=abs(args.n_splits), n_repeats=args.repeat * 100, random_state=args.seed)
 num = np.arange(len(p_idx))
 accuracy, aucs, cms, recalls, precisions = [], [], [], [], []
 iter_count = 0
@@ -439,7 +438,6 @@ for train_index, test_index in rkf.split(num):
     #     temp_ = np.random.choice(test_index[label_stat == cts.argmax()], 2 * cts.min(), replace=False)
     #     test_index = np.concatenate([temp_, test_index[label_stat == cts.argmin()]])
 
-
     label_stat = []
     for idx in train_index:
         label_stat.append(labels_[p_idx[idx][0]])
@@ -451,7 +449,7 @@ for train_index, test_index in rkf.split(num):
     kk = 0
     while True:
         train_index_, valid_index, ty, vy = train_test_split(train_index, label_stat, test_size=0.33,
-                                                              random_state=args.seed + kk)
+                                                             random_state=args.seed + kk)
         if len(set(ty)) == 2 and len(set(vy)) == 2:
             break
         kk += 1
@@ -475,8 +473,10 @@ for train_index, test_index in rkf.split(num):
     id_test = []
     id_valid = []
     # only use the augmented data (intra-mixup, inter-mixup) as train data
-    data_augmented, train_p_idx, labels_augmented, cell_type_augmented = mixups(args, data, [p_idx[idx] for idx in train_index], labels_,
-                                                           cell_type)
+    data_augmented, train_p_idx, labels_augmented, cell_type_augmented = mixups(args, data,
+                                                                                [p_idx[idx] for idx in train_index],
+                                                                                labels_,
+                                                                                cell_type)
     individual_train, individual_test = sampling(args, train_p_idx, [p_idx[idx] for idx in _index], labels_,
                                                  labels_augmented, cell_type_augmented)
     for t in individual_train:
@@ -499,7 +499,8 @@ for train_index, test_index in rkf.split(num):
     x_train, x_valid, x_test, y_train, y_valid, y_test = x_train, x_valid, x_test, np.array(y_train).reshape([-1, 1]), \
                                                          np.array(y_valid).reshape([-1, 1]), np.array(y_test).reshape(
         [-1, 1])
-    auc, acc, cm, recall, precision = train(x_train, x_valid, x_test, y_train, y_valid, y_test, id_train, id_test, data_augmented, data)
+    auc, acc, cm, recall, precision = train(x_train, x_valid, x_test, y_train, y_valid, y_test, id_train, id_test,
+                                            data_augmented, data)
     aucs.append(auc)
     accuracy.append(acc)
     cms.append(cm)
@@ -516,10 +517,10 @@ accuracy = np.array(accuracy).reshape([-1, args.repeat]).mean(0)
 aucs = np.array(aucs).reshape([-1, args.repeat]).mean(0)
 recalls = np.array(recalls).reshape([-1, args.repeat]).mean(0)
 precisions = np.array(precisions).reshape([-1, args.repeat]).mean(0)
-ci_1 = st.t.interval(alpha=0.95, df=len(accuracy)-1, loc=np.mean(accuracy), scale=st.sem(accuracy))[1] - np.mean(accuracy)
-ci_2 = st.t.interval(alpha=0.95, df=len(aucs)-1, loc=np.mean(aucs), scale=st.sem(aucs))[1] - np.mean(aucs)
-ci_3 = st.t.interval(alpha=0.95, df=len(recalls)-1, loc=np.mean(recalls), scale=st.sem(recalls))[1] - np.mean(recalls)
-ci_4 = st.t.interval(alpha=0.95, df=len(precisions)-1, loc=np.mean(precisions), scale=st.sem(precisions))[1] - np.mean(precisions)
+ci_1 = st.t.interval(alpha=0.95, df=len(accuracy) - 1, loc=np.mean(accuracy), scale=st.sem(accuracy))[1] - np.mean(accuracy)
+ci_2 = st.t.interval(alpha=0.95, df=len(aucs) - 1, loc=np.mean(aucs), scale=st.sem(aucs))[1] - np.mean(aucs)
+ci_3 = st.t.interval(alpha=0.95, df=len(recalls) - 1, loc=np.mean(recalls), scale=st.sem(recalls))[1] - np.mean(recalls)
+ci_4 = st.t.interval(alpha=0.95, df=len(precisions) - 1, loc=np.mean(precisions), scale=st.sem(precisions))[1] - np.mean(precisions)
 print("ci: ACC ci %f,   AUC ci %f,   Recall ci %f,   Precision ci %f" % (ci_1, ci_2, ci_3, ci_4))
 print(np.average(cms, 0))
 print(patient_summary)

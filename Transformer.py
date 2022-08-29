@@ -6,6 +6,28 @@ import pytorch_lightning as pl
 import pdb
 
 
+def _scaled_dot_product(q, k, v, mask=None, dropout=None, top_k=10):
+    d_k = q.size()[-1]
+    attn_logits = torch.matmul(q, k.transpose(-2, -1))
+    attn_logits = attn_logits / math.sqrt(d_k)
+    if mask is not None:
+        mask = mask.unsqueeze(1).unsqueeze(1)
+        attn_logits = attn_logits.masked_fill(mask, float("-inf"))
+    attention = F.softmax(attn_logits, dim=-1)
+    if dropout is not None:
+        attention = dropout(attention)
+    batch_size, heads, num, _ = attention.shape
+    sorted, top_k_index = torch.sort(attention, -1)
+    top_k_v = torch.broadcast_to(sorted[:, :, :, -top_k].unsqueeze(-1), attention.shape)
+    approx_att = torch.broadcast_to(sorted[:, :, :, :-top_k].mean(-1).unsqueeze(-1), attention.shape).clone()
+    # default = torch.broadcast_to(sorted[:, :, :, :-top_k].median(-1)[0].unsqueeze(-1),
+    #                                    (batch_size, heads, num, num))
+    mask = (attention >= top_k_v)
+    approx_att[mask] = attention[mask]
+    values = torch.matmul(approx_att, v)
+    return values, approx_att
+
+
 def scaled_dot_product(q, k, v, mask=None, dropout=None):
     d_k = q.size()[-1]
     attn_logits = torch.matmul(q, k.transpose(-2, -1))
@@ -45,7 +67,7 @@ class MultiheadAttention(nn.Module):
         nn.init.xavier_uniform_(self.o_proj.weight)
         self.o_proj.bias.data.fill_(0)
 
-    def forward(self, x, mask=None, return_attention=False):
+    def forward(self, x, mask=None, return_attention=False, task='train'):
         batch_size, seq_length, embed_dim = x.size()
         qkv = self.qkv_proj(x)
 
@@ -55,8 +77,11 @@ class MultiheadAttention(nn.Module):
         q, k, v = qkv.chunk(3, dim=-1)
 
         # Determine value outputs
-        values, attention = scaled_dot_product(q, k, v, mask=mask, dropout=self.dropout)
-        values = values.permute(0, 2, 1, 3) # [Batch, SeqLen, Head, Dims]
+        if task == 'train':
+            values, attention = scaled_dot_product(q, k, v, mask=mask, dropout=self.dropout)
+        else:
+            values, attention = _scaled_dot_product(q, k, v, mask=mask, dropout=self.dropout)
+        values = values.permute(0, 2, 1, 3)  # [Batch, SeqLen, Head, Dims]
         values = values.reshape(batch_size, seq_length, embed_dim)
         o = self.o_proj(values)
 
@@ -96,15 +121,15 @@ class EncoderBlock(nn.Module):
         self.dropout1 = nn.Dropout(dropout)
         self.dropout2 = nn.Dropout(dropout)
 
-    def forward(self, x, mask=None):
+    def forward(self, x, mask=None, task='train'):
         if self.norm_first:
             # Attention part
-            x = x + self.dropout1(self.self_attn(self.norm1(x), mask=mask))
+            x = x + self.dropout1(self.self_attn(self.norm1(x), mask=mask, task=task))
             # MLP part
             x = x + self.dropout2(self.linear_net(self.norm2(x)))
         else:
             # Attention part
-            x = self.norm1(x + self.dropout1(self.self_attn(x, mask=mask)))
+            x = self.norm1(x + self.dropout1(self.self_attn(x, mask=mask, task=task)))
             # MLP part
             x = self.norm2(x + self.dropout2(self.linear_net(x)))
 
@@ -117,9 +142,9 @@ class TransformerEncoder(nn.Module):
         super().__init__()
         self.layers = nn.ModuleList([EncoderBlock(**block_args) for _ in range(num_layers)])
 
-    def forward(self, x, mask=None):
+    def forward(self, x, mask=None, task='train'):
         for l in self.layers:
-            x = l(x, mask=mask)
+            x = l(x, mask=mask, task=task)
         return x
 
     def get_attention_maps(self, x, mask=None):
@@ -211,7 +236,7 @@ class TransformerPredictor(pl.LightningModule):
             nn.Linear(self.hparams.model_dim, self.hparams.num_classes)
         )
 
-    def forward(self, x, mask=None, add_positional_encoding=False):
+    def forward(self, x, mask=None, add_positional_encoding=False, task='train'):
         """
         Inputs:
             x - Input features of shape [Batch, SeqLen, input_dim]
@@ -225,7 +250,7 @@ class TransformerPredictor(pl.LightningModule):
             x = self.input_net(x)
         if add_positional_encoding:
             x = self.positional_encoding(x)
-        x = self.transformer(x, mask=mask)
+        x = self.transformer(x, mask=mask, task=task)
         if mask is not None:
             mask_ = mask.unsqueeze(2).expand(-1, -1, self.hparams.model_dim)
             x = x.masked_fill(mask_, 0.)
