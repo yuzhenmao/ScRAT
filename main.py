@@ -305,9 +305,9 @@ def train(x_train, x_valid, x_test, y_train, y_valid, y_test, id_train, id_test,
             id_ = batch[2][0]
 
             if args.top_k:
-                out = best_model(x_)
-            else:
                 out = best_model(x_, task='test')
+            else:
+                out = best_model(x_)
             out = sigmoid(out)
             out = out.detach().cpu().numpy().reshape(-1)
 
