@@ -40,6 +40,11 @@ def Covid_data(args):
     cell_type_64 = pickle.load(a_file)
     a_file.close()
 
+    if args.task == 'severity':
+        a_file = open('stage_label.pkl', "rb")
+        stage_labels = pickle.load(a_file)
+        a_file.close()
+
     id_dict = {}
     if args.task == 'severity':
         id_dict = {'mild/moderate': 0, 'severe/critical': 1, 'control': -1}
@@ -49,6 +54,10 @@ def Covid_data(args):
         id_dict = {'convalescence': 0, 'progression': 1, 'control': -1}
 
     labels_ = np.array(labels.map(id_dict))
+
+    if args.task == 'severity':
+        id_dict_ = {'convalescence': 0, 'progression': 1, 'control': 0}
+        labels_stage = np.array(stage_labels.map(id_dict_))
 
     l_dict = {}
     indices = np.arange(origin.shape[0])
@@ -65,10 +74,15 @@ def Covid_data(args):
                     p_idx.append(iidx)
                     l_dict[labels_[iidx[0]]] = l_dict.get(labels_[iidx[0]], 0) + 1
         else:
-            if labels_[idx[0]] > -1:
-                p_idx.append(idx)
-                l_dict[labels_[idx[0]]] = l_dict.get(labels_[idx[0]], 0) + 1
+            if args.task == 'severity':
+                if (labels_[idx[0]] > -1) and (labels_stage[idx[0]]) > 0:
+                    p_idx.append(idx)
+                    l_dict[labels_[idx[0]]] = l_dict.get(labels_[idx[0]], 0) + 1
+            else:
+                if labels_[idx[0]] > -1:
+                    p_idx.append(idx)
+                    l_dict[labels_[idx[0]]] = l_dict.get(labels_[idx[0]], 0) + 1
 
     print(l_dict)
-    
+
     return [], p_idx, labels_, cell_type, patient_id, origin, cell_type_64
