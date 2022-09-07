@@ -218,3 +218,34 @@ class Linear_Classfier(nn.Module):
         e_outputs = torch.mean(src, dim=1)
         output = self.out1(e_outputs)
         return output
+
+
+class scFeedForward(nn.Module):
+    def __init__(self, input_dim=50, cl=2, model_dim=128, dropout=0, pca=False):
+        super().__init__()
+        self.input_net = FeedForward_(h_dim1=input_dim, h_dim2=model_dim, d_ff=model_dim, dropout=dropout)
+        self.dimRedu_net = torch.nn.Sequential(
+            nn.Linear(input_dim, model_dim * 2),
+            nn.ReLU(inplace=True),
+            nn.Dropout(dropout),
+            nn.Linear(model_dim * 2, model_dim)
+        )
+        # Output classifier per sequence lement
+        self.output_net = nn.Sequential(
+            # nn.Linear(model_dim, model_dim),
+            # nn.LayerNorm(model_dim),
+            # nn.ReLU(inplace=True),
+            # nn.Dropout(dropout),
+            nn.Linear(model_dim, cl)
+        )
+        self.pca = pca
+
+    def forward(self, src, mask=None):
+        if not self.pca:
+            x = self.dimRedu_net(src)
+        else:
+            x = self.input_net(src)
+        x = x.mean(1)
+        x = self.output_net(x)
+        return x
+

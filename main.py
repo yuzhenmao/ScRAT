@@ -113,7 +113,7 @@ parser.add_argument('--intra_only', type=_str2bool, default=False)
 parser.add_argument('--norm_first', type=_str2bool, default=False)
 parser.add_argument('--threshold', type=float, default=0.5)
 parser.add_argument('--warmup', type=_str2bool, default=False)
-parser.add_argument('--top_k', type=_str2bool, default=False)
+parser.add_argument('--top_k', type=_str2bool, default=True)
 
 args = parser.parse_args()
 
@@ -167,6 +167,8 @@ def train(x_train, x_valid, x_test, y_train, y_valid, y_test, id_train, id_test,
         model = FeedForward(input_dim=input_dim, h_dim=args.h_dim, cl=output_class, dropout=args.dropout)
     elif args.model == 'linear':
         model = Linear_Classfier(input_dim=input_dim, cl=output_class)
+    elif args.model == 'scfeed':
+        model = scFeedForward(input_dim=input_dim, cl=output_class, model_dim=args.emb_dim, dropout=args.dropout, pca=args.pca)
 
     model = nn.DataParallel(model)
     model.to(device)
@@ -304,7 +306,7 @@ def train(x_train, x_valid, x_test, y_train, y_valid, y_test, id_train, id_test,
             y_ = batch[1].int().numpy()
             id_ = batch[2][0]
 
-            if args.top_k:
+            if args.top_k and args.model == 'Transformer':
                 out = best_model(x_, task='test')
             else:
                 out = best_model(x_)
