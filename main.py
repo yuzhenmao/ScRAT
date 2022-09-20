@@ -164,7 +164,7 @@ def train(x_train, x_valid, x_test, y_train, y_valid, y_test, id_train, id_test,
                                      num_heads=args.heads, num_layers=args.layers, dropout=args.dropout,
                                      input_dropout=0, pca=args.pca, norm_first=args.norm_first)
     elif args.model == 'feedforward':
-        model = FeedForward(input_dim=input_dim, h_dim=args.h_dim, cl=output_class, dropout=args.dropout)
+        model = FeedForward(input_dim=input_dim, h_dim=args.emb_dim, cl=output_class, dropout=args.dropout)
     elif args.model == 'linear':
         model = Linear_Classfier(input_dim=input_dim, cl=output_class)
     elif args.model == 'scfeed':
