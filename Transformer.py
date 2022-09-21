@@ -187,7 +187,7 @@ class PositionalEncoding(nn.Module):
 class TransformerPredictor(pl.LightningModule):
 
     def __init__(self, input_dim, model_dim, num_classes, num_heads, num_layers, dropout=0.0,
-                 input_dropout=0.0, pca=False, norm_first=True):
+                 input_dropout=0.0, pca=False, norm_first=False):
         """
         Inputs:
             input_dim - Hidden dimensionality of the input
