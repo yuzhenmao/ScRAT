@@ -113,7 +113,7 @@ parser.add_argument('--intra_only', type=_str2bool, default=False)
 parser.add_argument('--norm_first', type=_str2bool, default=False)
 parser.add_argument('--threshold', type=float, default=0.5)
 parser.add_argument('--warmup', type=_str2bool, default=False)
-parser.add_argument('--top_k', type=_str2bool, default=True)
+parser.add_argument('--top_k', type=int, default=1)
 
 args = parser.parse_args()
 
@@ -125,6 +125,7 @@ np.random.seed(args.seed)
 
 patient_summary = {}
 stats = {}
+stats_id = {}
 
 
 # x_train, x_valid, x_test, y_train, y_valid, y_test = scRNA_data(cell_num=100)  # numpy array
@@ -306,19 +307,19 @@ def train(x_train, x_valid, x_test, y_train, y_valid, y_test, id_train, id_test,
             y_ = batch[1].int().numpy()
             id_ = batch[2][0]
 
-            if args.top_k and args.model == 'Transformer':
-                out = best_model(x_, task='test')
-            else:
-                out = best_model(x_)
+            out = best_model(x_)
             out = sigmoid(out)
             out = out.detach().cpu().numpy().reshape(-1)
 
             if args.model == 'Transformer':
                 attens = best_model.module.get_attention_maps(x_)[-1]
                 for iter in range(len(attens)):
-                    topK = np.bincount(attens[iter].max(-1)[1].cpu().detach().numpy().reshape(-1)).argsort()[-20:][::-1]
-                    for types in cell_type_64[id_[iter][topK]]:
-                        stats[types] = stats.get(types, 0) + 1
+                    # topK = np.bincount(attens[iter].max(-1)[1].cpu().detach().numpy().reshape(-1)).argsort()[-20:][::-1]
+                    topK = np.bincount(attens[iter].argsort(-1)[:, :, -args.top_k:].
+                                       cpu().detach().numpy().reshape(-1)).argsort()[-20:][::-1]
+                    for idd in id_[iter][topK]:
+                        stats[cell_type_64[idd]] = stats.get(cell_type_64[idd], 0) + 1
+                        stats_id[idd] = stats_id.get(idd, 0) + 1
 
             y_ = y_[0][0]
             true.append(y_)
@@ -527,3 +528,4 @@ print("ci: ACC ci %f,   AUC ci %f,   Recall ci %f,   Precision ci %f" % (ci_1, c
 print(np.average(cms, 0))
 print(patient_summary)
 print(stats)
+print(stats_id)
