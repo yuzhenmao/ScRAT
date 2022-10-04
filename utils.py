@@ -278,3 +278,10 @@ def sampling(args, train_p_idx, test_p_idx, labels_, labels_augmented, cell_type
             individual_test.append(temp)
 
     return individual_train, individual_test
+
+
+def stratify(out, split=2):
+    f = lambda x: int(x * split)
+    func = np.vectorize(f)
+    majority = np.argmax(np.bincount(func(out))).reshape(-1)[0]
+    return out[func(out) == majority].mean()
