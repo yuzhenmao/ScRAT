@@ -98,7 +98,7 @@ parser.add_argument("--test_num_sample", type=int, default=100,
 parser.add_argument('--model', type=str, default='Transformer')
 parser.add_argument('--dataset', type=str, default=None)
 
-parser.add_argument('--intra_mixup', type=_str2bool, default=False)
+parser.add_argument('--intra_mixup', type=_str2bool, default=False)  # Not used
 parser.add_argument('--inter_only', type=_str2bool, default=False)
 parser.add_argument('--same_pheno', type=int, default=0)
 parser.add_argument('--augment_num', type=int, default=0)
@@ -109,7 +109,7 @@ parser.add_argument('--min_size', type=int, default=6000)
 parser.add_argument('--n_splits', type=int, default=5)
 parser.add_argument('--pca', type=_str2bool, default=True)
 parser.add_argument('--mix_type', type=int, default=1)
-parser.add_argument('--intra_only', type=_str2bool, default=False)
+parser.add_argument('--intra_only', type=_str2bool, default=False)   # Not used
 parser.add_argument('--norm_first', type=_str2bool, default=False)
 parser.add_argument('--threshold', type=float, default=0.5)
 parser.add_argument('--warmup', type=_str2bool, default=False)
