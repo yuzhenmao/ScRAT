@@ -1,19 +1,5 @@
 import numpy as np
-from tqdm import tqdm
-import torch
 import pickle
-import copy
-import cloudpred
-import time
-import pdb
-import random
-import scipy
-from scipy.io import mmread
-import scanpy as sc
-from sklearn.decomposition import PCA
-import scanpy as sc
-import pandas as pd
-from sklearn.model_selection import train_test_split
 
 
 def Covid_data(args):

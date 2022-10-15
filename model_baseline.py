@@ -3,8 +3,6 @@ from torch import nn
 import math
 from torch.autograd import Variable
 import copy
-import numpy as np
-import pdb
 
 
 ###### Transformer ######
