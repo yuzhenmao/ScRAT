@@ -4,16 +4,12 @@ import scipy.stats as st
 from torch.optim import Adam
 from utils import *
 import argparse
-import plotly
-import plotly.graph_objects as go
-from plotly.subplots import make_subplots
 from sklearn.metrics import confusion_matrix
 from sklearn.model_selection import RepeatedKFold
 from sklearn.model_selection import train_test_split
 
 from model_baseline import *
 from Transformer import TransformerPredictor
-import transformers
 
 from dataloader import *
 
@@ -32,68 +28,36 @@ def int_or_float(x):
 parser = argparse.ArgumentParser(description='scRNA diagnosis')
 
 parser.add_argument('--seed', type=int, default=240)
-
 parser.add_argument('--batch_size', type=int, default=16)
 parser.add_argument('--learning_rate', type=float, default=3e-3)
 parser.add_argument('--weight_decay', type=float, default=1e-4)
-parser.add_argument('--epochs', type=int, default=120)
-
-parser.add_argument("--dir", type=str, default="covid_data", help="root directory of data")
-
-parser.add_argument("--train_dataset", type=str, default="covid_data_sex_4.pkl")
-parser.add_argument("--test_dataset", type=str, default="covid_data_sex_4.pkl")
-
+parser.add_argument('--epochs', type=int, default=100)
 parser.add_argument("--task", type=str, default="severity")
-
 parser.add_argument('--emb_dim', type=int, default=128)  # embedding dim
 parser.add_argument('--h_dim', type=int, default=128)  # hidden dim of the model
 parser.add_argument('--dropout', type=float, default=0.3)  # dropout
-
 parser.add_argument('--layers', type=int, default=1)
 parser.add_argument('--heads', type=int, default=8)
-parser.add_argument("-t", "--transform", default="log",
-                    choices=["none", "log"],
-                    help="preprocessing on data")
-parser.add_argument("--pc", type=_str2bool, default=True,
-                    help="project onto principal components")
-parser.add_argument("--valid", type=int_or_float, default=0.25,
-                    help="root for optional figures")
-parser.add_argument("--test", type=int_or_float, default=0.25,
-                    help="root for optional figures")
-parser.add_argument("--train_patients", type=int, default=None,
-                    help="limit number of training patients")
-parser.add_argument("--cells", type=int, default=None,
-                    help="limit number of cells")
-parser.add_argument("-f", "--figroot", type=str, default=None,
-                    help="root for optional figures")
-parser.add_argument("--sample_cells", type=int, default=500,
-                    help="number of cells in one sample")
 parser.add_argument("--train_sample_cells", type=int, default=500,
                     help="number of cells in one sample in train dataset")
 parser.add_argument("--test_sample_cells", type=int, default=500,
                     help="number of cells in one sample in test dataset")
-parser.add_argument("--num_sample", type=int, default=1000,
-                    help="number of sampled data points")
 parser.add_argument("--train_num_sample", type=int, default=20,
                     help="number of sampled data points in train dataset")
 parser.add_argument("--test_num_sample", type=int, default=100,
                     help="number of sampled data points in test dataset")
-
 parser.add_argument('--model', type=str, default='Transformer')
 parser.add_argument('--dataset', type=str, default=None)
-
-parser.add_argument('--intra_mixup', type=_str2bool, default=False)  # Not used
 parser.add_argument('--inter_only', type=_str2bool, default=False)
 parser.add_argument('--same_pheno', type=int, default=0)
 parser.add_argument('--augment_num', type=int, default=0)
-parser.add_argument('--alpha', type=float, default=1.0)  # TODO need to change
+parser.add_argument('--alpha', type=float, default=1.0)
 parser.add_argument('--repeat', type=int, default=3)
 parser.add_argument('--all', type=int, default=1)
 parser.add_argument('--min_size', type=int, default=6000)
 parser.add_argument('--n_splits', type=int, default=5)
 parser.add_argument('--pca', type=_str2bool, default=True)
 parser.add_argument('--mix_type', type=int, default=1)
-parser.add_argument('--intra_only', type=_str2bool, default=False)   # Not used
 parser.add_argument('--norm_first', type=_str2bool, default=False)
 parser.add_argument('--threshold', type=float, default=0.5)
 parser.add_argument('--warmup', type=_str2bool, default=False)
@@ -112,23 +76,7 @@ stats = {}
 stats_id = {}
 
 
-# x_train, x_valid, x_test, y_train, y_valid, y_test = scRNA_data(cell_num=100)  # numpy array
-# x_train, x_valid, x_test, y_train, y_valid, y_test = Cloudpred_data(args)
-# x_train, x_valid, x_test, y_train, y_valid, y_test, id_train, id_test = Covid_data(args)
-
-
 def train(x_train, x_valid, x_test, y_train, y_valid, y_test, id_train, id_test, data_augmented, data):
-    # x_train, x_valid, x_test, y_train, y_valid, y_test = \
-    #     torch.from_numpy(x_train).float(), torch.from_numpy(x_valid).float(), torch.from_numpy(x_test).float(), \
-    #     torch.from_numpy(y_train).long(), torch.from_numpy(y_valid).long(), torch.from_numpy(y_test).long()
-    #
-    #
-    # train_loader = torch.utils.data.DataLoader(torch.utils.data.TensorDataset(x_train, y_train), batch_size=args.batch_size, shuffle=True)
-    # test_loader = torch.utils.data.DataLoader(torch.utils.data.TensorDataset(x_test, y_test), batch_size=args.batch_size, shuffle=False)
-    # valid_loader = torch.utils.data.DataLoader(torch.utils.data.TensorDataset(x_valid, y_valid), batch_size=args.batch_size, shuffle=False)
-
-    #
-    #
     dataset_1 = MyDataset(x_train, x_valid, x_test, y_train, y_valid, y_test, id_train, id_test, fold='train')
     dataset_2 = MyDataset(x_train, x_valid, x_test, y_train, y_valid, y_test, id_train, id_test, fold='test')
     dataset_3 = MyDataset(x_train, x_valid, x_test, y_train, y_valid, y_test, id_train, id_test, fold='val')
@@ -143,8 +91,6 @@ def train(x_train, x_valid, x_test, y_train, y_valid, y_test, id_train, id_test,
     output_class = 1
 
     if args.model == 'Transformer':
-        # model = Transformer(seq_len=args.sample_cells, input_dim=input_dim, emb_dim=args.emb_dim, h_dim=args.h_dim,
-        #                     N=args.layers, heads=args.heads, dropout=args.dropout, cl=output_class, pca=args.pca)
         model = TransformerPredictor(input_dim=input_dim, model_dim=args.emb_dim, num_classes=output_class,
                                      num_heads=args.heads, num_layers=args.layers, dropout=args.dropout,
                                      input_dropout=0, pca=args.pca, norm_first=args.norm_first)
@@ -182,8 +128,6 @@ def train(x_train, x_valid, x_test, y_train, y_valid, y_test, id_train, id_test,
         model.train()
         train_loss = []
 
-        # pred = []
-        # true = []
 
         for batch in (train_loader):
             x_ = torch.from_numpy(data_augmented[batch[0]]).float().to(device)
@@ -200,24 +144,11 @@ def train(x_train, x_valid, x_test, y_train, y_valid, y_test, id_train, id_test,
             optimizer.step()
             train_loss.append(loss.item())
 
-            # out = sigmoid(out)
-            # out = out.detach().cpu().numpy()
-
-            # pred.append(out)
-            # y_ = y_.detach().cpu().numpy()
-            # true.append(y_)
-
         scheduler.step()
-
-        # my_lr = scheduler.get_lr()
-        # print(my_lr)
 
         train_loss = sum(train_loss) / len(train_loss)
         train_losses.append(train_loss)
         train_acc = 0
-
-        # pred = np.concatenate(pred)
-        # true = np.concatenate(true)
 
         if ep % 1 == 0:
             valid_loss = []
@@ -231,20 +162,11 @@ def train(x_train, x_valid, x_test, y_train, y_valid, y_test, id_train, id_test,
 
                     out = model(x_)
                     out = sigmoid(out)
-                    # out = out.detach().cpu().numpy()
 
                     loss = nn.BCELoss()(out, y_ * torch.ones(out.shape).to(device))
                     valid_loss.append(loss.item())
 
                     out = out.detach().cpu().numpy()
-
-                    # attens = model.module.attens
-                    # topK = np.bincount(attens.max(-1)[1].cpu().detach().numpy().reshape(-1)).argsort()[-20:][::-1]
-                    # for types in id_[topK]:
-                    #     if stats.get(types, 0) == 0:
-                    #         stats[types] = 1
-                    #     else:
-                    #         stats[types] += 1
 
                     # majority voting
                     f = lambda x: 1 if x > 0.5 else 0
@@ -256,23 +178,18 @@ def train(x_train, x_valid, x_test, y_train, y_valid, y_test, id_train, id_test,
             pred = np.concatenate(pred)
             true = np.concatenate(true)
 
-            # valid_auc = metrics.auc(fpr, tpr)
-            # valid_auc = metrics.roc_auc_score(true, pred)
-            # valid_acc = accuracy_score(true.reshape(-1), pred)
-            # valid_aucs.append(valid_auc)
             valid_loss = sum(valid_loss) / len(valid_loss)
             valid_losses.append(valid_loss)
 
             if (valid_loss < best_valid_loss):
                 best_model = copy.deepcopy(model)
-                # max_valid_auc = valid_auc
                 max_epoch = ep
                 best_valid_loss = valid_loss
                 max_loss = train_loss
 
             print("Epoch %d, Train Loss %f, Valid_loss %f" % (ep, train_loss, valid_loss))
 
-            # if (ep > args.epochs - 50) and (valid_auc < valid_aucs[-2]):
+            # Early stop
             if (ep > args.epochs - 50) and ep > 1 and (valid_loss > valid_losses[-2]):
                 trigger_times += 1
                 if trigger_times >= patience:
@@ -298,9 +215,8 @@ def train(x_train, x_valid, x_test, y_train, y_valid, y_test, id_train, id_test,
             if args.model == 'Transformer':
                 attens = best_model.module.get_attention_maps(x_)[-1]
                 for iter in range(len(attens)):
-                    # topK = np.bincount(attens[iter].max(-1)[1].cpu().detach().numpy().reshape(-1)).argsort()[-20:][::-1]
                     topK = np.bincount(attens[iter].argsort(-1)[:, :, -args.top_k:].
-                                       cpu().detach().numpy().reshape(-1)).argsort()[-20:][::-1]
+                                       cpu().detach().numpy().reshape(-1)).argsort()[-20:][::-1]   # 20 is a 
                     for idd in id_[iter][topK]:
                         stats[cell_type_64[idd]] = stats.get(cell_type_64[idd], 0) + 1
                         stats_id[idd] = stats_id.get(idd, 0) + 1
@@ -337,64 +253,12 @@ def train(x_train, x_valid, x_test, y_train, y_valid, y_test, id_train, id_test,
     if (cm[3] + cm[1]) == 0:
         precision = 0
 
-    # print("Epoch %d, Train Loss %f, Train ACC %f, Valid ACC %f, Test ACC %f,"%(ep, train_loss, train_acc, valid_acc, test_acc))
-    # print("Epoch %d, Train Loss %f, Test ACC %f,"%(ep, train_loss, test_acc))
-
     print("Best performance: Epoch %d, Loss %f, Test ACC %f, Test AUC %f, Test Recall %f, Test Precision %f" % (
     max_epoch, max_loss, test_acc, test_auc, recall, precision))
     print("Confusion Matrix: " + str(cm))
     for w in wrongs:
         v = patient_summary.get(w, 0)
         patient_summary[w] = v + 1
-
-    ####################
-    # Visualization
-    ####################
-    start_epoch = 0
-    end_epoch = args.epochs
-    plot_num = 1
-    label = [None] * plot_num
-    label[0] = 'method=0, LR=0.001'
-    fig = make_subplots(rows=1, cols=2)
-    colors = plotly.colors.DEFAULT_PLOTLY_COLORS
-    col_num = len(colors)
-
-    epoch = np.arange(start_epoch, end_epoch)
-
-    def plot_sub(sub_val, sub_row, sub_col, sub_x_title, sub_y_title, sub_showlegend, log_y=True):
-        linewidth = 1
-        dash_val_counter = 0
-        dash_val = None
-
-        for k in range(plot_num):
-            fig.add_trace(go.Scatter(x=epoch, y=sub_val[k][start_epoch:end_epoch],
-                                     name=label[k],
-                                     line=dict(color=colors[k % col_num], width=linewidth, dash=dash_val),
-                                     legendgroup=str(k), showlegend=sub_showlegend),
-                          row=sub_row, col=sub_col)
-            if dash_val_counter == 0:
-                dash_val = 'dashdot'
-            elif dash_val_counter == 1:
-                dash_val = 'dash'
-            else:
-                dash_val = None
-                dash_val_counter = -1
-            dash_val_counter += 1
-        fig.update_xaxes(title_text=sub_x_title, row=sub_row, col=sub_col)
-        if log_y == True:
-            fig.update_yaxes(title_text=sub_y_title, row=sub_row, col=sub_col, type="log")
-        else:
-            fig.update_yaxes(title_text=sub_y_title, row=sub_row, col=sub_col)
-
-    # plot_sub([train_losses], 1, 1, 'epoch', 'train loss', True, log_y=True)
-    # plot_sub([train_accs], 1, 2, 'epoch', 'train acc', False, log_y=True)
-    # plot_sub([valid_losses], 1, 2, 'epoch', 'valid loss', False, log_y=True)
-    # plot_sub([test_accs], 2, 2, 'epoch', 'test acc', False, log_y=True)
-
-    # if not os.path.exists(args.dir):
-    #     os.makedirs(args.dir)
-
-    # fig.write_html(args.dir + '/' + str(iter_count) + '_' + datetime.now().strftime("%Y%m%d%H%M%S") + '.html')
 
     return test_auc, test_acc, cm, recall, precision
 
@@ -413,17 +277,6 @@ for train_index, test_index in rkf.split(num):
         temp_idx = train_index
         train_index = test_index
         test_index = temp_idx
-
-    # label_stat = []
-    # for idx in test_index:
-    #     label_stat.append(labels_[p_idx[idx][0]])
-    # label_stat = np.array(label_stat)
-    # unique, cts = np.unique(label_stat, return_counts=True)
-    # if len(unique) < 2 or (1 in cts):
-    #     continue
-    # if cts.max() > 2 * cts.min():
-    #     temp_ = np.random.choice(test_index[label_stat == cts.argmax()], 2 * cts.min(), replace=False)
-    #     test_index = np.concatenate([temp_, test_index[label_stat == cts.argmin()]])
 
     label_stat = []
     for idx in train_index:
@@ -459,7 +312,6 @@ for train_index, test_index in rkf.split(num):
     id_train = []
     id_test = []
     id_valid = []
-    # only use the augmented data (intra-mixup, inter-mixup) as train data
     data_augmented, train_p_idx, labels_augmented, cell_type_augmented = mixups(args, data,
                                                                                 [p_idx[idx] for idx in train_index],
                                                                                 labels_,
@@ -509,7 +361,7 @@ ci_2 = st.t.interval(alpha=0.95, df=len(aucs) - 1, loc=np.mean(aucs), scale=st.s
 ci_3 = st.t.interval(alpha=0.95, df=len(recalls) - 1, loc=np.mean(recalls), scale=st.sem(recalls))[1] - np.mean(recalls)
 ci_4 = st.t.interval(alpha=0.95, df=len(precisions) - 1, loc=np.mean(precisions), scale=st.sem(precisions))[1] - np.mean(precisions)
 print("ci: ACC ci %f,   AUC ci %f,   Recall ci %f,   Precision ci %f" % (ci_1, ci_2, ci_3, ci_4))
-print(np.average(cms, 0))
-print(patient_summary)
-print(stats)
-print(stats_id)
+# print(np.average(cms, 0))
+# print(patient_summary)
+# print(stats)
+# print(stats_id)

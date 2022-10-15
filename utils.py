@@ -97,15 +97,10 @@ def mixups(args, data, p_idx, labels_, cell_type):
     for idx, i in enumerate(p_idx):
         max_num_cells += (max(args.min_size - len(i), 0) + 100)
     data_augmented = np.zeros([max_num_cells + (args.min_size + 100) * args.augment_num, data.shape[1]])
-    if args.intra_only and args.intra_mixup:
-        last = 0
-        labels_augmented = []
-        cell_type_augmented = []
-    else:
-        data_augmented[:data.shape[0]] = data
-        last = data.shape[0]
-        labels_augmented = copy.deepcopy(labels_)
-        cell_type_augmented = cell_type_
+    data_augmented[:data.shape[0]] = data
+    last = data.shape[0]
+    labels_augmented = copy.deepcopy(labels_)
+    cell_type_augmented = cell_type_
 
     if args.same_pheno != 0:
         p_idx_per_pheno = {}
@@ -120,9 +115,9 @@ def mixups(args, data, p_idx, labels_, cell_type):
         p_idx_augmented = []
     else:
         p_idx_augmented = copy.deepcopy(p_idx)
-    # inter-mixup
+    
     if args.augment_num > 0:
-        print("======= inter patient mixup ... ============")
+        print("======= sample mixup ... ============")
         for i in tqdm(range(args.augment_num)):
             lam = np.random.beta(args.alpha, args.alpha)
             if args.same_pheno == 1:

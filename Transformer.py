@@ -6,6 +6,9 @@ import pytorch_lightning as pl
 
 
 def _scaled_dot_product(q, k, v, mask=None, dropout=None, top_k=10):
+    """
+    For top k experiment only
+    """
     d_k = q.size()[-1]
     attn_logits = torch.matmul(q, k.transpose(-2, -1))
     attn_logits = attn_logits / math.sqrt(d_k)
