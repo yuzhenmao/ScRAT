@@ -218,7 +218,7 @@ def train(x_train, x_valid, x_test, y_train, y_valid, y_test, id_train, id_test,
                     topK = np.bincount(attens[iter].argsort(-1)[:, :, -args.top_k:].
                                        cpu().detach().numpy().reshape(-1)).argsort()[-20:][::-1]   # 20 is a 
                     for idd in id_[iter][topK]:
-                        stats[cell_type_64[idd]] = stats.get(cell_type_64[idd], 0) + 1
+                        stats[cell_type_large[idd]] = stats.get(cell_type_large[idd], 0) + 1
                         stats_id[idd] = stats_id.get(idd, 0) + 1
 
             y_ = y_[0][0]
@@ -266,7 +266,7 @@ def train(x_train, x_valid, x_test, y_train, y_valid, y_test, id_train, id_test,
 if args.model != 'Transformer':
     args.repeat = 60
 
-_, p_idx, labels_, cell_type, patient_id, data, cell_type_64 = Covid_data(args)
+_, p_idx, labels_, cell_type, patient_id, data, cell_type_large = Covid_data(args)
 rkf = RepeatedKFold(n_splits=abs(args.n_splits), n_repeats=args.repeat * 100, random_state=args.seed)
 num = np.arange(len(p_idx))
 accuracy, aucs, cms, recalls, precisions = [], [], [], [], []
