@@ -8,16 +8,13 @@ tallation](#)
 3. [Test Run](#test-run)
 4. [Contact](#contact)
 
-## Installation
-### Installation From Source
-> *Prerequisite* You will need (what requirement?) 
+## Setup
 
 ```
-git clone --recursive https://github.com/yuzhenmao/ScRAT
+git clone https://github.com/yuzhenmao/ScRAT
 cd ScRAT
+pip install -r requirements.txt
 ```
-
-### BIOCONDA (maybe not necessary)
 
 ## Input Data Format
 ScRAT requires the following information.
