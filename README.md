@@ -13,6 +13,8 @@ tallation](#)
 ```
 git clone https://github.com/yuzhenmao/ScRAT
 cd ScRAT
+python3 -m venv scrat
+source scrat/bin/activate
 pip install -r requirements.txt
 ```
 
