@@ -1,14 +1,5 @@
 import numpy as np
-from tqdm import tqdm
-import torch
 import pickle
-import copy
-import time
-import pdb
-import random
-import scanpy as sc
-import pandas as pd
-import os
 
 
 def Covid_data(args):
