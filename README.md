@@ -25,6 +25,7 @@ ScRAT requires the following information.
 
 ## Test Run
 Please download datasets from the original papers listed in our paper.
+Put the data under ./data
 
 ### Sample Input Datasets
 
