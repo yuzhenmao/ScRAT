@@ -20,7 +20,7 @@ pip install -r requirements.txt
 
 ## Input Data Format
 ScRAT requires the following information.
-* scRNA-seq sample Matrices
+* scRNA-seq sample Matrices (row major)
 * Metadata for cells: patient_id, phenotype labels, cell_type
 
 ## Test Run
