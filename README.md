@@ -1,7 +1,7 @@
 ScRAT: Single-cell RNA (scRNA-seq) ATtention Network for clinical phenotype prediction
 ==========
 Early Phenotype Prediction using scRNA-seq Data from Limited Number of Samples and Minimal Dependency of Cell-type Annotations
-tallation](#)
+
 # Table of contents
 1. [Setup](#setup)
 2. [Inout Data Format](#input-data-format)
