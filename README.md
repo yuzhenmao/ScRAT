@@ -65,5 +65,5 @@ You can modify the hyper-parameters in `run.sh`.
 `out.txt`
 
 ## Contact
-Please contact us via yuzhenm@sfu.ca if you have any problem when running the code.
+Please contact us via yuzhenm@sfu.ca if you have any question when running the code.
 
