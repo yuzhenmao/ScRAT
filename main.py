@@ -147,7 +147,6 @@ def train(x_train, x_valid, x_test, y_train, y_valid, y_test, id_train, id_test,
 
         train_loss = sum(train_loss) / len(train_loss)
         train_losses.append(train_loss)
-        train_acc = 0
 
         if ep % 1 == 0:
             valid_loss = []
@@ -174,8 +173,8 @@ def train(x_train, x_valid, x_test, y_train, y_valid, y_test, id_train, id_test,
                     pred.append(out)
                     y_ = y_.detach().cpu().numpy()
                     true.append(y_)
-            pred = np.concatenate(pred)
-            true = np.concatenate(true)
+            # pred = np.concatenate(pred)
+            # true = np.concatenate(true)
 
             valid_loss = sum(valid_loss) / len(valid_loss)
             valid_losses.append(valid_loss)
