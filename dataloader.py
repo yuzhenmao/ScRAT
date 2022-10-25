@@ -167,4 +167,4 @@ def Covid_data(args):
 
     print(l_dict)
 
-    return [], p_idx, labels_, cell_type, patient_id, origin, cell_type_large
+    return p_idx, labels_, cell_type, patient_id, origin, cell_type_large
