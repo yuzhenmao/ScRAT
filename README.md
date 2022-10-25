@@ -57,6 +57,10 @@ You can also get the raw data from the original papers listed in our paper.
 ```
 bash run.sh
 ```
+
+You can modify the hyper-parameters in `run.sh`.
+- task: `stage`, `severity`, `haniffa`, `combat`
+
 ### Output Demo
 `out.txt`
 
