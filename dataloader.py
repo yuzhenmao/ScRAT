@@ -165,6 +165,6 @@ def Covid_data(args):
                     p_idx.append(tt_idx)
                     l_dict[labels_[idx[0]]] = l_dict.get(labels_[idx[0]], 0) + 1
 
-    print(l_dict)
+    # print(l_dict)
 
     return p_idx, labels_, cell_type, patient_id, origin, cell_type_large

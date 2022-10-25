@@ -74,6 +74,13 @@ patient_summary = {}
 stats = {}
 stats_id = {}
 
+if args.task == 'haniffa' or args.task == 'combat':
+    label_dict = {0: 'Non Covid', 1: 'Covid'}
+elif args.task == 'severity':
+    label_dict = {0: 'mild', 1: 'severe'}
+elif args.task == 'stage':
+    label_dict = {0: 'convalescence', 1: 'progression'}
+
 
 def train(x_train, x_valid, x_test, y_train, y_valid, y_test, id_train, id_test, data_augmented, data):
     dataset_1 = MyDataset(x_train, x_valid, x_test, y_train, y_valid, y_test, id_train, id_test, fold='train')
@@ -197,6 +204,7 @@ def train(x_train, x_valid, x_test, y_train, y_valid, y_test, id_train, id_test,
 
     best_model.eval()
     pred = []
+    test_id = []
     true = []
     wrong = []
     prob = []
@@ -232,6 +240,7 @@ def train(x_train, x_valid, x_test, y_train, y_valid, y_test, id_train, id_test,
             func = np.vectorize(f)
             out = np.argmax(np.bincount(func(out).reshape(-1))).reshape(-1)[0]
             pred.append(out)
+            test_id.append(patient_id[batch[2][0][0][0]])
             if out != y_:
                 wrong.append(patient_id[batch[2][0][0][0]])
 
@@ -243,6 +252,8 @@ def train(x_train, x_valid, x_test, y_train, y_valid, y_test, id_train, id_test,
     test_auc = metrics.roc_auc_score(true, prob)
 
     test_acc = accuracy_score(true, pred)
+    for idx in range(len(pred)):
+        print(f"{test_id[idx]} -- true: {label_dict[true[idx]]} -- pred: {label_dict[pred[idx]]}")
     test_accs.append(test_acc)
 
     cm = confusion_matrix(true, pred).ravel()
@@ -349,16 +360,25 @@ for train_index, test_index in rkf.split(num):
 
     del data_augmented
 
+print("="*33)
+print("=== Final Evaluation (average across all splits) ===")
+print("="*33)
+
 print("Best performance: Test ACC %f,   Test AUC %f,   Test Recall %f,   Test Precision %f" % (np.average(accuracy), np.average(aucs), np.average(recalls), np.average(precisions)))
-accuracy = np.array(accuracy).reshape([-1, args.repeat]).mean(0)
-aucs = np.array(aucs).reshape([-1, args.repeat]).mean(0)
-recalls = np.array(recalls).reshape([-1, args.repeat]).mean(0)
-precisions = np.array(precisions).reshape([-1, args.repeat]).mean(0)
-ci_1 = st.t.interval(alpha=0.95, df=len(accuracy) - 1, loc=np.mean(accuracy), scale=st.sem(accuracy))[1] - np.mean(accuracy)
-ci_2 = st.t.interval(alpha=0.95, df=len(aucs) - 1, loc=np.mean(aucs), scale=st.sem(aucs))[1] - np.mean(aucs)
-ci_3 = st.t.interval(alpha=0.95, df=len(recalls) - 1, loc=np.mean(recalls), scale=st.sem(recalls))[1] - np.mean(recalls)
-ci_4 = st.t.interval(alpha=0.95, df=len(precisions) - 1, loc=np.mean(precisions), scale=st.sem(precisions))[1] - np.mean(precisions)
-print("ci: ACC ci %f,   AUC ci %f,   Recall ci %f,   Precision ci %f" % (ci_1, ci_2, ci_3, ci_4))
+
+####################################
+######## Only for repeat > 1 #######
+####################################
+# accuracy = np.array(accuracy).reshape([-1, args.repeat]).mean(0)
+# aucs = np.array(aucs).reshape([-1, args.repeat]).mean(0)
+# recalls = np.array(recalls).reshape([-1, args.repeat]).mean(0)
+# precisions = np.array(precisions).reshape([-1, args.repeat]).mean(0)
+# ci_1 = st.t.interval(alpha=0.95, df=len(accuracy) - 1, loc=np.mean(accuracy), scale=st.sem(accuracy))[1] - np.mean(accuracy)
+# ci_2 = st.t.interval(alpha=0.95, df=len(aucs) - 1, loc=np.mean(aucs), scale=st.sem(aucs))[1] - np.mean(aucs)
+# ci_3 = st.t.interval(alpha=0.95, df=len(recalls) - 1, loc=np.mean(recalls), scale=st.sem(recalls))[1] - np.mean(recalls)
+# ci_4 = st.t.interval(alpha=0.95, df=len(precisions) - 1, loc=np.mean(precisions), scale=st.sem(precisions))[1] - np.mean(precisions)
+# print("ci: ACC ci %f,   AUC ci %f,   Recall ci %f,   Precision ci %f" % (ci_1, ci_2, ci_3, ci_4))
+
 # print(np.average(cms, 0))
 # print(patient_summary)
 # print(stats)

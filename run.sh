@@ -20,4 +20,5 @@ python main.py  \
     --learning_rate 0.01 \
     --alpha 0.5 \
     --mix_type 1 \
+    --repeat 1 \
     --train_sample_cells=500  --test_sample_cells=500  --train_num_sample=20 --test_num_sample=50
