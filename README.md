@@ -28,20 +28,24 @@ Please download datasets from: https://figshare.com/projects/ScRAT_Early_Phenoty
 ```
 data/
 ├── SC4
+│   ├── cell_type_large.pkl
 │   ├── cell_type.pkl
 │   ├── covid_pca.npy
 │   ├── patient_id.pkl
-│   └── ...
-├── COMBAT
+│   └── severity_label.pkl
+│   └── stage_label.pkl
+├── Haniffa
+│   ├── cell_type_large.pkl
 │   ├── cell_type.pkl
 │   ├── Haniffa_X_pca.npy
 │   ├── patient_id.pkl
-│   └── ...
-├── Haniffa
+│   └── labels.pkl
+├── COMBAT
+│   ├── cell_type_large.pkl
 │   ├── cell_type.pkl
 │   ├── COMBAT_X_pca.npy
 │   ├── patient_id.pkl
-│   └── ...
+│   └── labels.pkl
 
 ```
 
