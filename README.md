@@ -8,7 +8,7 @@ Early Phenotype Prediction using scRNA-seq Data from Limited Number of Samples a
 3. [Test Run](#test-run)
 4. [Contact](#contact)
 
-## Setup (python>=3.6)
+## Setup (python>=3.7)
 
 ```
 git clone https://github.com/yuzhenmao/ScRAT
