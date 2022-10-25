@@ -24,8 +24,13 @@ ScRAT requires the following information.
 * Metadata for cells
 
 ## Test Run
-Please download datasets from the original papers listed in our paper.
-Put the data under ./data
+Please download datasets from: https://figshare.com/projects/ScRAT_Early_Phenotype_Prediction_From_Single-cell_RNA-seq_Data_using_Attention-Based_Neural_Networks/151659
+You can also get the raw data from the original papers listed in our paper.
+```
+mkdir data
+cd data
+wget https://figshare.com/projects/ScRAT_Early_Phenotype_Prediction_From_Single-cell_RNA-seq_Data_using_Attention-Based_Neural_Networks/151659
+```
 
 ### Sample Input Datasets
 
@@ -35,5 +40,5 @@ bash run.sh
 ```
 
 ## Contact
-Please contact us via yuzhenm@sfu.ca to get the detailed instruction about data preprocessing.
+Please contact us via yuzhenm@sfu.ca if you have any problem when running the code.
 
