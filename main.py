@@ -59,7 +59,6 @@ parser.add_argument('--n_splits', type=int, default=5)
 parser.add_argument('--pca', type=_str2bool, default=True)
 parser.add_argument('--mix_type', type=int, default=1)
 parser.add_argument('--norm_first', type=_str2bool, default=False)
-parser.add_argument('--threshold', type=float, default=0.5)
 parser.add_argument('--warmup', type=_str2bool, default=False)
 parser.add_argument('--top_k', type=int, default=1)
 
