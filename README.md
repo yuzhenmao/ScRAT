@@ -61,7 +61,7 @@ bash run.sh
 You can modify the hyper-parameters in `run.sh`.
 - task: `stage`, `severity`, `haniffa`, `combat`
 
-### Output Demo
+### Output Template
 `out.txt`
 
 ## Contact
