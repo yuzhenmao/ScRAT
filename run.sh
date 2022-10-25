@@ -17,7 +17,6 @@ python main.py  \
     --augment_num 300 \
     --pca True \
     --warmup False \
-    --threshold 0 \
     --learning_rate 0.01 \
     --alpha 0.5 \
     --mix_type 1 \
