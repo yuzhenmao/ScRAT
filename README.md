@@ -32,7 +32,7 @@ data/
 │   ├── cell_type.pkl
 │   ├── covid_pca.npy
 │   ├── patient_id.pkl
-│   └── severity_label.pkl
+│   ├── severity_label.pkl
 │   └── stage_label.pkl
 ├── Haniffa
 │   ├── cell_type_large.pkl
