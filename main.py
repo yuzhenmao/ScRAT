@@ -265,7 +265,7 @@ def train(x_train, x_valid, x_test, y_train, y_valid, y_test, id_train, id_test,
 if args.model != 'Transformer':
     args.repeat = 60
 
-_, p_idx, labels_, cell_type, patient_id, data, cell_type_large = Covid_data(args)
+p_idx, labels_, cell_type, patient_id, data, cell_type_large = Covid_data(args)
 rkf = RepeatedKFold(n_splits=abs(args.n_splits), n_repeats=args.repeat * 100, random_state=args.seed)
 num = np.arange(len(p_idx))
 accuracy, aucs, cms, recalls, precisions = [], [], [], [], []
