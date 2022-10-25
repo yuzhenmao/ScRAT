@@ -57,6 +57,8 @@ You can also get the raw data from the original papers listed in our paper.
 ```
 bash run.sh
 ```
+### Output Demo
+`out.txt`
 
 ## Contact
 Please contact us via yuzhenm@sfu.ca if you have any problem when running the code.
