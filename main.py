@@ -283,7 +283,7 @@ for train_index, test_index in rkf.split(num):
     unique, cts = np.unique(label_stat, return_counts=True)
     if len(unique) < 2 or (1 in cts):
         continue
-    print(dict(zip(unique, cts)))
+#     print(dict(zip(unique, cts)))
 
     kk = 0
     while True:
@@ -300,7 +300,7 @@ for train_index, test_index in rkf.split(num):
     train_ids = []
     for i in train_index:
         train_ids.append(patient_id[p_idx[i][0]])
-    print(train_ids)
+#     print(train_ids)
 
     x_train = []
     x_test = []
