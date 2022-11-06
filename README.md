@@ -55,7 +55,7 @@ You can also get the raw data from the original papers listed in our paper.
 ## Test Run
 ### Demo
 ```
-bash run.sh > out.txt
+bash run.sh
 ```
 
 You can modify the hyper-parameters in `run.sh`.
