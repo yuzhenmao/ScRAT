@@ -4,7 +4,7 @@ Early Phenotype Prediction using scRNA-seq Data from Limited Number of Samples a
 
 # Table of contents
 1. [Setup](#setup)
-2. [Inout Data Format](#input-data-format)
+2. [Input Data Format](#input-data-format)
 3. [Test Run](#test-run)
 4. [Contact](#contact)
 
