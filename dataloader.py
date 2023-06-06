@@ -175,7 +175,7 @@ def Custom_data(args):
     '''
     !!! Need to change line 178 before running the code !!!
     '''
-    id_dict = {}  # {'death': 0, 'health': 1}
+    id_dict = {}  # {'cancer': 1, 'health': 0}
     data = scanpy.read_h5ad(args.dataset)
     if args.pca == True:
         origin = data.obsm['X_pca']
