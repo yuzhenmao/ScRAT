@@ -20,9 +20,10 @@ pip install -r requirements.txt
 
 ## Input Data Format
 ScRAT requires the following information.
-* scRNA-seq sample Matrices (row major)
-* Metadata for cells: patient id, phenotype labels, cell population
+1) scRNA-seq sample Matrices (row major)
+2) Metadata for cells: patient id, phenotype labels, cell population
 
+* ### For dataset mentioned in our paper:
 Please download datasets from: https://figshare.com/projects/ScRAT_Early_Phenotype_Prediction_From_Single-cell_RNA-seq_Data_using_Attention-Based_Neural_Networks/151659, and put the datasets under `ScRAT/data`. The folder should have the following content:
 ```
 ScRAT/data/
@@ -47,10 +48,12 @@ ScRAT/data/
 │   └── labels.pkl
 
 ```
+(You can also get the raw data from the original papers listed in our paper.)
 
+* ###  For customized dataset:
+Please pack the dataset in the h5ad format and set the value of args.dataset to the path of the dataset. Also, please set args.task to 'custom'.
 
-You can also get the raw data from the original papers listed in our paper.
-
+Furthermore, in the dataloader.py file, please modify the following lines: line 185 (patient_id), line 187 (label), line 189 (low-resolution cell_type) and line 191 (high-resolution cell_type, not mandatory).
 
 ## Test Run
 ### Demo
