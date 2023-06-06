@@ -173,9 +173,9 @@ def Covid_data(args):
 
 def Custom_data(args):
     '''
-    !!! Need to change line 11 before running the code !!!
+    !!! Need to change line 178 before running the code !!!
     '''
-    id_dict = {}  
+    id_dict = {}
     data = scanpy.read_h5ad(args.dataset)
     if args.pca == True:
         origin = data.obsm['X_pca']
