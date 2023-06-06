@@ -218,14 +218,16 @@ def train(x_train, x_valid, x_test, y_train, y_valid, y_test, id_train, id_test,
             out = sigmoid(out)
             out = out.detach().cpu().numpy().reshape(-1)
 
-            if args.model == 'Transformer':
-                attens = best_model.module.get_attention_maps(x_)[-1]
-                for iter in range(len(attens)):
-                    topK = np.bincount(attens[iter].argsort(-1)[:, :, -args.top_k:].
-                                       cpu().detach().numpy().reshape(-1)).argsort()[-20:][::-1]   # 20 is a 
-                    for idd in id_[iter][topK]:
-                        stats[cell_type_large[idd]] = stats.get(cell_type_large[idd], 0) + 1
-                        stats_id[idd] = stats_id.get(idd, 0) + 1
+            # For attention analysis:
+
+            # if args.model == 'Transformer':
+            #     attens = best_model.module.get_attention_maps(x_)[-1]
+            #     for iter in range(len(attens)):
+            #         topK = np.bincount(attens[iter].argsort(-1)[:, :, -args.top_k:].
+            #                            cpu().detach().numpy().reshape(-1)).argsort()[-20:][::-1]   # 20 is a 
+            #         for idd in id_[iter][topK]:
+            #             stats[cell_type_large[idd]] = stats.get(cell_type_large[idd], 0) + 1
+            #             stats_id[idd] = stats_id.get(idd, 0) + 1
 
             y_ = y_[0][0]
             true.append(y_)
