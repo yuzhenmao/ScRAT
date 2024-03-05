@@ -1,6 +1,8 @@
 ScRAT: Single-cell RNA (scRNA-seq) ATtention Network for clinical phenotype prediction
 ==========
-Early Phenotype Prediction using scRNA-seq Data from Limited Number of Samples and Minimal Dependency of Cell-type Annotations
+
+The official implementation of _**Phenotype prediction from single-cell RNA-seq data using Attention-Based neural networks**_ (accepted at Bioinformatics).
+
 
 # Table of contents
 1. [Setup](#setup)
@@ -71,6 +73,22 @@ You can modify the hyper-parameters in `run.sh`.
 ### Output Template
 `out.txt`
 
-## Contact
-Please contact us via yuzhenm@sfu.ca if you have any question when running the code.
+# Reference
+
+Please cite the following paper if you found this library useful in your research:
+
+### [Phenotype prediction from single-cell RNA-seq data using Attention-Based neural networks](https://academic.oup.com/bioinformatics/article/40/2/btae067/7613064)
+[Yuzhen Mao](https://scholar.google.com/citations?user=9wKn1A0AAAAJ&hl=en), Yen-Yi Lin, Nelson KY Wong, Stanislav Volik, Funda Sar, [Colin Collins](https://collinslab.med.ubc.ca), [Martin Ester](https://sites.google.com/view/esterlab)\
+*Bioinformatics*, 2024
+
+```
+@article{mao2024phenotype,
+  title={Phenotype prediction from single-cell RNA-seq data using attention-based neural networks},
+  author={Mao, Yuzhen and Lin, Yen-Yi and Wong, Nelson KY and Volik, Stanislav and Sar, Funda and Collins, Colin and Ester, Martin},
+  journal={Bioinformatics},
+  pages={btae067},
+  year={2024},
+  publisher={Oxford University Press}
+}
+```
 
