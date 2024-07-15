@@ -59,7 +59,9 @@ Furthermore, in the dataloader.py file, please modify the following lines:
   1) line 178 for label dictionary to map string to integer (default: {})
   2) line 185 for patient id (default: data.obs['patient_id'])
   3) line 187 for label, which is clinical phenotype for prediction (default: data.obs['Outcome']) 
-  4) line 189 for cell type, which assist for mixup (default: data.obs['cell_type']) 
+  4) line 189 for cell type, which assist for mixup (default: data.obs['cell_type'])
+
+Also in the main.py file, please add `elif args.task == 'custom': label_dict = {0: 'XXX', 1: 'XXX'}` in line 83.
   
 ## Test Run
 ### Demo
